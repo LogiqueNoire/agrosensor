@@ -73,7 +73,12 @@ type AgroState = {
 
 const AgroContext = createContext<AgroState | null>(null)
 
-const IRRIGATED_MOISTURE = 45
+const IRRIGATION_INCREASES = [3, 5, 10]
+
+function getIrrigationMoisture(currentMoisture: number) {
+  const increase = IRRIGATION_INCREASES[Math.floor(Math.random() * IRRIGATION_INCREASES.length)]
+  return Math.min(100, currentMoisture + increase)
+}
 
 export function AgroProvider({ children }: { children: ReactNode }) {
   const [stack, setStack] = useState<Screen[]>(['splash'])
@@ -195,15 +200,19 @@ export function AgroProvider({ children }: { children: ReactNode }) {
   const updateParcel = (id: ParcelId, update: (p: Parcel) => Parcel) =>
     setParcels((list) => list.map((p) => (p.id === id ? update(p) : p)))
 
-  const markIrrigated = (id: ParcelId) =>
-    updateParcel(id, (p) => ({
-      ...p,
-      moisture: IRRIGATED_MOISTURE,
-      lastReadingMin: 0,
-      followUpAt: undefined,
-      history: [...p.history.slice(0, -1), IRRIGATED_MOISTURE],
-      readings: [{ time: 'Ahora (tras riego)', value: IRRIGATED_MOISTURE }, ...p.readings].slice(0, 6),
-    }))
+  const markIrrigated = (id: ParcelId) => {
+    updateParcel(id, (p) => {
+      const moisture = getIrrigationMoisture(p.moisture)
+      return {
+        ...p,
+        moisture,
+        lastReadingMin: 0,
+        followUpAt: undefined,
+        history: [...p.history.slice(0, -1), moisture],
+        readings: [{ time: 'Ahora (tras riego)', value: moisture }, ...p.readings].slice(0, 6),
+      }
+    })
+  }
 
   const scheduleFollowUp = (id: ParcelId, seconds: number) => {
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {

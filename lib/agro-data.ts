@@ -27,6 +27,7 @@ export type Parcel = {
   installationAge: string
   installationDate: string
   installationMonthsAgo: number
+  installationYear?: number
   moisture: number
   soilPh: number
   soilTemperature: number
@@ -151,9 +152,10 @@ export const INITIAL_PARCELS: Parcel[] = [
     name: 'Parcela Norte',
     hectares: 1.5,
     crop: 'Maíz',
-    installationAge: 'Hace 4 años',
-    installationDate: getInstallationDate(48),
-    installationMonthsAgo: 48,
+    installationAge: 'Hace 3 años',
+    installationDate: '1 de octubre de 2023',
+    installationMonthsAgo: 36,
+    installationYear: 2023,
     moisture: 42,
     soilPh: 6.4,
     soilTemperature: 18.7,

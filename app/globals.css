@@ -1,4 +1,12 @@
 @import 'tailwindcss';
+
+.agro-parcel-marker { background: transparent; border: 0; }
+.agro-parcel-marker > span { display: flex; width: 42px; height: 48px; align-items: center; justify-content: center; border-radius: 22px 22px 22px 4px; background: var(--marker-color); box-shadow: 0 4px 10px rgb(19 38 30 / 25%); transform: rotate(-45deg); border: 3px solid white; }
+.agro-person-marker > span { display: flex; width: 42px; height: 42px; align-items: center; justify-content: center; border: 3px solid white; border-radius: 999px; background: #246b51; box-shadow: 0 3px 9px rgb(19 38 30 / 30%); color: white; }
+.agro-person-marker svg { width: 25px; height: 25px; }
+.agro-parcel-marker__leaf { color: white; font-size: 21px; line-height: 1; transform: rotate(45deg); }
+.leaflet-control-attribution { font-size: 8px !important; }
+
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 

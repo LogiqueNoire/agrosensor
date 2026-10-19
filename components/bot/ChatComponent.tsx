@@ -53,6 +53,9 @@ export default function ChatComponent({ open, onOpenChange }: { open: boolean; o
         const currentAnswer = answer
         setMessages((current) => current.map((message, index) => index === current.length - 1 ? { ...message, text: currentAnswer } : message))
       }
+
+      answer += decoder.decode()
+      if (!answer.trim()) throw new Error('No se pudo conectar con el asistente.')
     } catch (error) {
       setMessages((current) => [...current, { role: 'assistant', text: error instanceof Error ? error.message : 'No se pudo responder.' }])
     } finally {

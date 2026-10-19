@@ -117,6 +117,7 @@ export function HistoryScreen() {
 const RANGE_OPTIONS = [
   { id: 'week', label: 'Semana', subtitle: 'Últimos 7 días', values: [38, 36, 39, 44, 41, 40, 42] },
   { id: 'month', label: 'Mes', subtitle: 'Últimas 4 semanas', values: [35, 38, 33, 36, 31, 34, 29, 32, 30, 35, 28, 31] },
+  { id: 'year', label: 'Este año', subtitle: 'Lecturas de este año', values: [31, 34, 29, 37, 35, 39, 33, 36, 40, 38, 42, 39] },
   { id: 'all', label: 'Desde instalación', subtitle: 'Todo el historial del sensor', values: [31, 34, 29, 37, 35, 39, 33, 36, 40, 38, 42, 39] },
 ] as const
 
@@ -126,23 +127,35 @@ export function ExpandedHistoryScreen() {
   const canViewWeek = availableDays >= 1
   const canViewMonth = availableDays >= 7
   const canViewAll = availableDays >= 7
-  const initialRange: 'week' | 'month' | 'all' = canViewMonth ? 'month' : 'week'
-  const [range, setRange] = useState<'week' | 'month' | 'all'>(initialRange)
+  const initialRange: 'week' | 'month' | 'year' | 'all' = canViewMonth ? 'month' : 'week'
+  const [range, setRange] = useState<'week' | 'month' | 'year' | 'all'>(initialRange)
   const currentMonth = getCurrentMonthSeries(parcel)
+  const currentYear = new Date().getFullYear()
+  const currentYearValues = Array.from({ length: 12 }, (_, index) => parcel.history[index % parcel.history.length] ?? parcel.moisture)
   const recentHistory = getRecentHistory(parcel)
   const selectedRange = range === 'month' && canViewMonth
     ? { id: 'month', label: 'Mes', subtitle: 'Días del mes actual hasta hoy', values: currentMonth.values }
-    : range === 'all' && canViewAll
-      ? RANGE_OPTIONS[2]
-      : { id: 'week', label: 'Semana', subtitle: availableDays === 1 ? 'Solo hay una medición disponible' : `${Math.min(availableDays, 7)} días desde la instalación`, values: recentHistory.values }
+    : range === 'year'
+      ? { id: 'year', label: 'Este año', subtitle: `Enero–diciembre de ${currentYear}`, values: currentYearValues }
+      : range === 'all' && canViewAll
+        ? RANGE_OPTIONS[3]
+        : { id: 'week', label: 'Semana', subtitle: availableDays === 1 ? 'Solo hay una medición disponible' : `${Math.min(availableDays, 7)} días desde la instalación`, values: recentHistory.values }
   const avg = Math.round(selectedRange.values.reduce((a, b) => a + b, 0) / selectedRange.values.length)
   const min = Math.min(...selectedRange.values)
-  const currentYear = new Date().getFullYear()
+  const installationYear = parcel.installationYear ?? currentYear - Math.max(1, Math.round(parcel.installationMonthsAgo / 12))
+  const yearSpan = Math.max(1, currentYear - installationYear)
   const labels = range === 'week' || (!canViewMonth && !canViewAll)
     ? recentHistory.labels
     : range === 'month'
       ? currentMonth.labels
-      : [`${currentYear - 4}`, '', '', `${currentYear - 3}`, '', '', `${currentYear - 2}`, '', '', `${currentYear - 1}`, '', `${currentYear}`]
+      : range === 'year'
+        ? ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+        : Array.from({ length: 12 }, (_, index) => {
+          if (index === 0) return `${installationYear}`
+          if (index === 11) return `${currentYear}`
+          if (yearSpan < 3 || index % 3 !== 0) return ''
+          return `${Math.round(installationYear + (yearSpan * index) / 11)}`
+        })
 
   return (
     <div className="flex h-full flex-col">
@@ -153,7 +166,7 @@ export function ExpandedHistoryScreen() {
         </div>
         <Card className="mt-4">
           <div className="flex items-start justify-between gap-2"><div><h2 className="font-semibold">{parcel.name}</h2><p className="text-xs text-muted-foreground">Sensor instalado {parcel.installationAge.toLowerCase()} ({parcel.installationDate})</p></div><StatusBadge status={getStatus(parcel.moisture)} /></div>
-          <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-muted/60 p-1">
+          <div className="mt-4 grid grid-cols-[0.9fr_0.7fr_1fr_1.35fr] gap-2 rounded-xl bg-muted/60 p-1">
             {RANGE_OPTIONS.map((item) => {
               const disabled = item.id === 'month' ? !canViewMonth : item.id === 'all' ? !canViewAll : !canViewWeek
               return (
