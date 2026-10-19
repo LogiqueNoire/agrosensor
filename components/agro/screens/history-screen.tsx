@@ -130,13 +130,16 @@ export function ExpandedHistoryScreen() {
   const initialRange: 'week' | 'month' | 'year' | 'all' = canViewMonth ? 'month' : 'week'
   const [range, setRange] = useState<'week' | 'month' | 'year' | 'all'>(initialRange)
   const currentMonth = getCurrentMonthSeries(parcel)
-  const currentYear = new Date().getFullYear()
-  const currentYearValues = Array.from({ length: 12 }, (_, index) => parcel.history[index % parcel.history.length] ?? parcel.moisture)
+  const currentDate = new Date()
+  const currentYear = currentDate.getFullYear()
+  const currentMonthIndex = currentDate.getMonth() + 1
+  const currentMonthName = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][currentMonthIndex - 1]
+  const currentYearValues = Array.from({ length: currentMonthIndex }, (_, index) => parcel.history[index % parcel.history.length] ?? parcel.moisture)
   const recentHistory = getRecentHistory(parcel)
   const selectedRange = range === 'month' && canViewMonth
     ? { id: 'month', label: 'Mes', subtitle: 'Días del mes actual hasta hoy', values: currentMonth.values }
     : range === 'year'
-      ? { id: 'year', label: 'Este año', subtitle: `Enero–diciembre de ${currentYear}`, values: currentYearValues }
+      ? { id: 'year', label: 'Este año', subtitle: `Enero–${currentMonthName} de ${currentYear}`, values: currentYearValues }
       : range === 'all' && canViewAll
         ? RANGE_OPTIONS[3]
         : { id: 'week', label: 'Semana', subtitle: availableDays === 1 ? 'Solo hay una medición disponible' : `${Math.min(availableDays, 7)} días desde la instalación`, values: recentHistory.values }
@@ -149,7 +152,7 @@ export function ExpandedHistoryScreen() {
     : range === 'month'
       ? currentMonth.labels
       : range === 'year'
-        ? ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+        ? ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'].slice(0, currentMonthIndex)
         : Array.from({ length: 12 }, (_, index) => {
           if (index === 0) return `${installationYear}`
           if (index === 11) return `${currentYear}`

@@ -10,10 +10,14 @@ export type CropProfile = {
 
 export const CROP_PROFILES: CropProfile[] = [
   { label: 'Palta', minMoisture: 35, maxMoisture: 55 },
-  { label: 'Tomate', minMoisture: 30, maxMoisture: 50 },
+  { label: 'Tomate', minMoisture: 60, maxMoisture: 70 },
   { label: 'Papa', minMoisture: 40, maxMoisture: 60 },
   { label: 'Zanahoria', minMoisture: 35, maxMoisture: 55 },
   { label: 'Limón', minMoisture: 30, maxMoisture: 50 },
+  { label: 'Arándano', minMoisture: 45, maxMoisture: 65 },
+  { label: 'Espárrago', minMoisture: 60, maxMoisture: 70 },
+  { label: 'Algodón', minMoisture: 30, maxMoisture: 50 },
+  { label: 'Uva', minMoisture: 35, maxMoisture: 55 },
   { label: 'Maíz', minMoisture: 35, maxMoisture: 55 },
 ]
 

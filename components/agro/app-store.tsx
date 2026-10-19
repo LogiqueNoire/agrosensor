@@ -32,7 +32,7 @@ export const TAB_ORDER: Screen[] = ['parcels', 'history', 'alerts', 'settings']
 
 export type Transition = { direction: 1 | -1; fade: boolean }
 
-type User = { name: string; email: string }
+type User = { name: string; email: string; avatar?: string }
 
 export type NotificationInfo = {
   key: number

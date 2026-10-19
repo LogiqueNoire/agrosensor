@@ -1,8 +1,8 @@
 'use client'
 
 import { motion } from 'motion/react'
-import { BellOff, ChevronRight, Headphones, LogOut, Mail, MessageCircle, Phone, TriangleAlert, Volume2 } from 'lucide-react'
-import { useEffect } from 'react'
+import { BellOff, Camera, ChevronRight, Headphones, LogOut, Mail, MessageCircle, Phone, TriangleAlert, Volume2 } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import { STATUS_META } from '@/lib/agro-data'
 import { cn } from '@/lib/utils'
 import { useAgro } from '../app-store'
@@ -59,7 +59,8 @@ export function AlertsScreen() {
 }
 
 export function SettingsScreen() {
-  const { user, soundEnabled, setSoundEnabled, logout } = useAgro()
+  const { user, soundEnabled, setSoundEnabled, setUser, logout } = useAgro()
+  const avatarInputRef = useRef<HTMLInputElement>(null)
   const initials = (user?.name ?? 'A')
     .split(' ')
     .map((w) => w[0])
@@ -72,9 +73,38 @@ export function SettingsScreen() {
       <ScreenHeader title="Configuración" />
       <div className="flex flex-1 flex-col overflow-y-auto px-4 pt-4 pb-6 no-scrollbar">
         <Card className="flex items-center gap-3">
-          <span className="flex size-14 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
-            {initials}
-          </span>
+          <div className="relative shrink-0">
+            {user?.avatar ? (
+              <img src={user.avatar} alt="Foto de perfil" className="size-14 rounded-full object-cover" />
+            ) : (
+              <span className="flex size-14 items-center justify-center rounded-full bg-primary text-lg font-bold text-primary-foreground">
+                {initials}
+              </span>
+            )}
+            <button
+              type="button"
+              aria-label="Cambiar foto de perfil"
+              onClick={() => avatarInputRef.current?.click()}
+              className="absolute -right-1 -bottom-1 flex size-7 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground shadow-sm outline-none hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40"
+            >
+              <Camera className="size-3.5" aria-hidden />
+            </button>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="sr-only"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                if (!file || !user) return
+                if (file.size > 5 * 1024 * 1024) return
+                const reader = new FileReader()
+                reader.onload = () => setUser({ ...user, avatar: String(reader.result) })
+                reader.readAsDataURL(file)
+                event.target.value = ''
+              }}
+            />
+          </div>
           <div className="min-w-0">
             <p className="truncate text-lg font-semibold">{user?.name ?? 'Agricultor'}</p>
             <p className="flex items-center gap-1 truncate text-sm text-muted-foreground">
