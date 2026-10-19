@@ -55,6 +55,7 @@ export function AddParcelScreen() {
     const newParcel: Omit<Parcel, 'id'> = {
       name: name.trim().startsWith('Parcela') ? name.trim() : `Parcela ${name.trim()}`,
       hectares, crop, installationAge: 'Instalación pendiente', installationDate: getInstallationDate(0), installationMonthsAgo: 0, moisture,
+      soilPh: 6.2, soilTemperature: 19.0, ambientTemperature: 25.0,
       lastReadingMin: 0, image, history: [moisture, moisture, moisture, moisture, moisture, moisture, moisture],
       readings: [{ time: 'Ahora', value: moisture }],
     }

@@ -1,9 +1,9 @@
 'use client'
 
+import Image from 'next/image'
 import { motion } from 'motion/react'
 import { useEffect } from 'react'
 import { useAgro } from '../app-store'
-import { Monogram } from '../ui'
 
 export function SplashScreen() {
   const { reset } = useAgro()
@@ -22,8 +22,14 @@ export function SplashScreen() {
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="flex flex-col items-center"
       >
-        <Monogram className="text-8xl" />
-        <p className="mt-3 text-2xl font-semibold tracking-tight">AgroSensor</p>
+        <Image
+          src="/agro-sensor-logo.png"
+          alt="Agro Sensor"
+          width={230}
+          height={142}
+          priority
+          className="rounded-2xl object-contain"
+        />
       </motion.div>
       <motion.p
         initial={{ opacity: 0 }}

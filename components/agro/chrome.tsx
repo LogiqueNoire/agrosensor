@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'motion/react'
-import { BatteryFull, Bell, ChartColumn, House, Settings, Signal, Wifi, X } from 'lucide-react'
+import { Bot, BatteryFull, Bell, ChartColumn, House, Settings, Signal, Wifi, X } from 'lucide-react'
 import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useAgro, type Screen } from './app-store'
@@ -33,12 +33,12 @@ const TABS: { id: Screen; label: string; icon: typeof House; matches: Screen[] }
   { id: 'settings', label: 'Configuración', icon: Settings, matches: ['settings'] },
 ]
 
-export function BottomNav() {
+export function BottomNav({ onAssistantClick }: { onAssistantClick: () => void }) {
   const { screen, goToTab, unreadAlerts } = useAgro()
 
   return (
     <nav aria-label="Navegación principal" className="shrink-0 border-t border-border bg-card pb-1 sm:pb-5">
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-5">
         {TABS.map((tab) => {
           const active = tab.matches.includes(screen)
           const Icon = tab.icon
@@ -76,13 +76,27 @@ export function BottomNav() {
             </li>
           )
         })}
+        <li>
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.92 }}
+            onClick={onAssistantClick}
+            className="relative flex h-16 w-full flex-col items-center justify-center gap-1 text-[11px] font-semibold text-muted-foreground outline-none focus-visible:bg-muted"
+            aria-label="Abrir asistente"
+          >
+            <Bot className="size-6" aria-hidden />
+            Asistente
+          </motion.button>
+        </li>
       </ul>
     </nav>
   )
 }
 
 export function NotificationBanner() {
-  const { notificationKey, dismissNotification, openNotification } = useAgro()
+  const { notification, dismissNotification, openNotification } = useAgro()
+  const notificationKey = notification?.key ?? null
+  const isReminder = notification?.kind === 'reminder'
 
   useEffect(() => {
     if (notificationKey === null) return
@@ -117,10 +131,10 @@ export function NotificationBanner() {
                   AgroSensor
                   <span className="font-medium normal-case">ahora</span>
                 </span>
-                <span className="mt-0.5 block text-sm font-semibold text-danger">Humedad crítica · 12%</span>
-                <span className="block text-sm leading-snug text-foreground">
-                  AgroSensor: Alerta de humedad crítica en Parcela Este
+                <span className={`mt-0.5 block text-sm font-semibold ${isReminder ? 'text-warning' : 'text-danger'}`}>
+                  {notification?.headline}
                 </span>
+                <span className="block text-sm leading-snug text-foreground">{notification?.body}</span>
                 <span className="mt-1 block text-xs font-medium text-primary">Toca para ver el detalle</span>
               </span>
             </motion.button>
@@ -133,7 +147,7 @@ export function NotificationBanner() {
               <X className="size-4" aria-hidden />
             </button>
             <motion.span
-              className="absolute bottom-0 left-0 h-0.5 bg-danger/60"
+              className={`absolute bottom-0 left-0 h-0.5 ${isReminder ? 'bg-warning/60' : 'bg-danger/60'}`}
               initial={{ width: '100%' }}
               animate={{ width: '0%' }}
               transition={{ duration: 7, ease: 'linear' }}

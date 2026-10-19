@@ -1,11 +1,12 @@
 'use client'
 
+import Image from 'next/image'
 import { AnimatePresence, motion } from 'motion/react'
 import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react'
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { useAgro } from '../app-store'
-import { AppButton, Monogram, ScreenHeader } from '../ui'
+import { AppButton, ScreenHeader } from '../ui'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
@@ -135,10 +136,20 @@ function useForm(fields: Field[]) {
 function AuthHero({ title, subtitle }: { title: string; subtitle: string }) {
   return (
     <div className="bg-primary px-6 pt-6 pb-10 text-primary-foreground">
-      <div className="flex size-14 items-center justify-center rounded-2xl bg-white/12">
-        <Monogram className="text-2xl" />
+      <div className="flex items-center gap-3">
+        <span className="inline-flex h-14 w-[84px] items-center justify-center overflow-hidden rounded-2xl bg-white">
+          <Image
+            src="/agro-sensor-icon.png"
+            alt=""
+            width={96}
+            height={96}
+            className="h-11 w-11 object-contain"
+            priority
+          />
+        </span>
+        <span className="text-2xl font-bold tracking-tight">AgroSensor</span>
       </div>
-      <h1 className="mt-5 text-2xl font-bold text-balance">{title}</h1>
+      <h1 className="mt-6 text-2xl font-bold text-balance">{title}</h1>
       <p className="mt-1 text-sm text-pretty opacity-85">{subtitle}</p>
     </div>
   )

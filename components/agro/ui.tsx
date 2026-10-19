@@ -1,7 +1,8 @@
 'use client'
 
+import Image from 'next/image'
 import { motion, type HTMLMotionProps } from 'motion/react'
-import { ArrowLeft, Leaf } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { STATUS_META, type MoistureStatus } from '@/lib/agro-data'
@@ -86,11 +87,18 @@ export function StatusBadge({ status, className }: { status: MoistureStatus; cla
 
 export function Logo({ className }: { className?: string }) {
   return (
-    <span className={cn('inline-flex items-center gap-2 text-lg font-bold tracking-tight', className)}>
-      <span className="flex size-8 items-center justify-center rounded-lg bg-white/15">
-        <Leaf className="size-5" aria-hidden />
+    <span className={cn('inline-flex items-center gap-2', className)}>
+      <span className="inline-flex h-10 w-[60px] items-center justify-center overflow-hidden rounded-xl bg-white">
+        <Image
+          src="/agro-sensor-icon.png"
+          alt="AgroSensor"
+          width={96}
+          height={96}
+          className="h-8 w-8 object-contain"
+          priority
+        />
       </span>
-      AgroSensor
+      <span className="text-base font-bold tracking-tight text-primary-foreground">AgroSensor</span>
     </span>
   )
 }

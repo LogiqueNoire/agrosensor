@@ -3,11 +3,28 @@
 import { motion } from 'motion/react'
 import { BellRing, ChevronRight, Clock, Plus, Sprout, UserRound } from 'lucide-react'
 import Image from 'next/image'
+import { useEffect, useState } from 'react'
 
-import { STATUS_META, formatLastReading, getStatus, type Parcel } from '@/lib/agro-data'
+import { STATUS_META, formatCountdown, formatLastReading, getStatus, type Parcel } from '@/lib/agro-data'
 import { cn } from '@/lib/utils'
 import { useAgro } from '../app-store'
 import { AppButton, Card, Logo, StatusBadge } from '../ui'
+
+function FollowUpCountdown({ dueAt }: { dueAt: number }) {
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(interval)
+  }, [])
+
+  return (
+    <span className="inline-flex items-center gap-1 font-semibold tabular-nums text-warning">
+      <BellRing className="size-3.5" aria-hidden />
+      Recordatorio en {formatCountdown(dueAt - now)}
+    </span>
+  )
+}
 
 function ParcelCard({ parcel, index, onOpen }: { parcel: Parcel; index: number; onOpen: () => void }) {
   const status = getStatus(parcel.moisture)
@@ -20,7 +37,7 @@ function ParcelCard({ parcel, index, onOpen }: { parcel: Parcel; index: number; 
       transition={{ delay: 0.05 + index * 0.07, duration: 0.3 }}
       whileTap={{ scale: 0.98 }}
       className="flex w-full items-stretch gap-3 rounded-2xl border border-border bg-card p-3 text-left shadow-[0_2px_10px_-4px_rgb(19_38_30/0.12)] outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
-      aria-label={`${parcel.name}, ${parcel.moisture}% de humedad, ${STATUS_META[status].label}. Ver detalle`}
+      aria-label={`${parcel.name}, ${parcel.moisture}% de humedad, pH ${parcel.soilPh.toFixed(1)}, ${parcel.soilTemperature.toFixed(1)} grados de suelo y ${parcel.ambientTemperature.toFixed(1)} grados ambiente. Ver detalle`}
     >
       <div className="relative w-20 shrink-0 overflow-hidden rounded-xl">
         <Image src={parcel.image} alt="" fill sizes="80px" className="object-cover" />
@@ -40,17 +57,26 @@ function ParcelCard({ parcel, index, onOpen }: { parcel: Parcel; index: number; 
           </div>
           <StatusBadge status={status} />
         </div>
+        <div className="mt-2 grid grid-cols-3 gap-1.5 border-t border-border/70 pt-2 text-[11px]">
+          <span className="rounded-lg bg-muted/60 px-2 py-1.5">
+            <span className="block text-muted-foreground">pH suelo</span>
+            <span className="font-semibold tabular-nums">{parcel.soilPh.toFixed(1)}</span>
+          </span>
+          <span className="rounded-lg bg-muted/60 px-2 py-1.5">
+            <span className="block text-muted-foreground">Temp. suelo</span>
+            <span className="font-semibold tabular-nums">{parcel.soilTemperature.toFixed(1)} °C</span>
+          </span>
+          <span className="rounded-lg bg-muted/60 px-2 py-1.5">
+            <span className="block text-muted-foreground">Temp. ambiente</span>
+            <span className="font-semibold tabular-nums">{parcel.ambientTemperature.toFixed(1)} °C</span>
+          </span>
+        </div>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             <Clock className="size-3.5" aria-hidden />
             Última lectura: {formatLastReading(parcel.lastReadingMin)}
           </span>
-          {parcel.followUpHours && (
-            <span className="inline-flex items-center gap-1 font-semibold text-warning">
-              <BellRing className="size-3.5" aria-hidden />
-              Recordatorio en {parcel.followUpHours} h
-            </span>
-          )}
+          {parcel.followUpAt !== undefined && <FollowUpCountdown dueAt={parcel.followUpAt} />}
         </div>
       </div>
       <ChevronRight className="size-5 shrink-0 self-center text-muted-foreground" aria-hidden />

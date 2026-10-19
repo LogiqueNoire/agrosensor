@@ -28,11 +28,47 @@ export type Parcel = {
   installationDate: string
   installationMonthsAgo: number
   moisture: number
+  soilPh: number
+  soilTemperature: number
+  ambientTemperature: number
   lastReadingMin: number
   image: string
   history: number[]
   readings: Reading[]
-  followUpHours?: number
+  followUpAt?: number
+}
+
+export const FOLLOW_UP_MIN_SECONDS = 5
+export const FOLLOW_UP_MAX_SECONDS = 30 * 24 * 60 * 60
+
+export const FOLLOW_UP_UNITS = [
+  { id: 'seconds', label: 'Segundos', short: 's', seconds: 1 },
+  { id: 'minutes', label: 'Minutos', short: 'min', seconds: 60 },
+  { id: 'hours', label: 'Horas', short: 'h', seconds: 3600 },
+  { id: 'days', label: 'Días', short: 'd', seconds: 86400 },
+] as const
+
+export type FollowUpUnitId = (typeof FOLLOW_UP_UNITS)[number]['id']
+
+export function formatCountdown(ms: number) {
+  const total = Math.max(0, Math.ceil(ms / 1000))
+  const days = Math.floor(total / 86400)
+  const hours = Math.floor((total % 86400) / 3600)
+  const minutes = Math.floor((total % 3600) / 60)
+  const seconds = total % 60
+  if (days > 0) return `${days} d ${hours} h`
+  if (hours > 0) return `${hours} h ${minutes} min`
+  if (minutes > 0) return `${minutes} min ${seconds} s`
+  return `${seconds} s`
+}
+
+export function formatFollowUpDuration(totalSeconds: number) {
+  const unit = [...FOLLOW_UP_UNITS].reverse().find((u) => totalSeconds >= u.seconds && totalSeconds % u.seconds === 0)
+  if (!unit) return formatCountdown(totalSeconds * 1000)
+  const value = totalSeconds / unit.seconds
+  const names = { seconds: 'segundo', minutes: 'minuto', hours: 'hora', days: 'día' } as const
+  const name = names[unit.id]
+  return `${value} ${value === 1 ? name : unit.id === 'days' ? 'días' : `${name}s`}`
 }
 
 export type AlertItem = {
@@ -119,6 +155,9 @@ export const INITIAL_PARCELS: Parcel[] = [
     installationDate: getInstallationDate(48),
     installationMonthsAgo: 48,
     moisture: 42,
+    soilPh: 6.4,
+    soilTemperature: 18.7,
+    ambientTemperature: 24.3,
     lastReadingMin: 5,
     image: '/parcelas/norte.png',
     history: [38, 36, 39, 44, 41, 40, 42],
@@ -139,6 +178,9 @@ export const INITIAL_PARCELS: Parcel[] = [
     installationDate: getInstallationDate(30),
     installationMonthsAgo: 30,
     moisture: 28,
+    soilPh: 6.1,
+    soilTemperature: 19.4,
+    ambientTemperature: 26.1,
     lastReadingMin: 12,
     image: '/parcelas/sur.png',
     history: [39, 37, 35, 33, 31, 30, 28],
@@ -159,6 +201,9 @@ export const INITIAL_PARCELS: Parcel[] = [
     installationDate: getInstallationDate(9),
     installationMonthsAgo: 9,
     moisture: 12,
+    soilPh: 5.8,
+    soilTemperature: 20.2,
+    ambientTemperature: 27.6,
     lastReadingMin: 20,
     image: '/parcelas/este.png',
     history: [30, 26, 23, 20, 17, 14, 12],

@@ -1,9 +1,10 @@
 'use client'
 
-import { createContext, useContext, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   INITIAL_ALERTS,
   INITIAL_PARCELS,
+  getStatus,
   type AlertItem,
   type Parcel,
   type ParcelId,
@@ -33,6 +34,14 @@ export type Transition = { direction: 1 | -1; fade: boolean }
 
 type User = { name: string; email: string }
 
+export type NotificationInfo = {
+  key: number
+  parcelId: ParcelId
+  kind: 'critical' | 'reminder'
+  headline: string
+  body: string
+}
+
 type AgroState = {
   screen: Screen
   canGoBack: boolean
@@ -42,7 +51,7 @@ type AgroState = {
   selectedParcel: Parcel
   alerts: AlertItem[]
   unreadAlerts: number
-  notificationKey: number | null
+  notification: NotificationInfo | null
   soundEnabled: boolean
   push: (screen: Screen) => void
   back: () => void
@@ -53,7 +62,7 @@ type AgroState = {
   openParcel: (id: ParcelId) => void
   selectParcel: (id: ParcelId) => void
   markIrrigated: (id: ParcelId) => void
-  scheduleFollowUp: (id: ParcelId, hours: number) => void
+  scheduleFollowUp: (id: ParcelId, seconds: number) => void
   triggerCriticalAlert: () => void
   dismissNotification: () => void
   openNotification: () => void
@@ -74,11 +83,84 @@ export function AgroProvider({ children }: { children: ReactNode }) {
   const [selectedId, setSelectedId] = useState<ParcelId>('norte')
   const [alerts, setAlerts] = useState<AlertItem[]>(INITIAL_ALERTS)
   const [unreadAlerts, setUnreadAlerts] = useState(INITIAL_ALERTS.length)
-  const [notificationKey, setNotificationKey] = useState<number | null>(null)
+  const [notification, setNotification] = useState<NotificationInfo | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const latest = useRef({ parcels, soundEnabled })
+  latest.current = { parcels, soundEnabled }
 
   const screen = stack[stack.length - 1]
+
+  const playNotificationSound = () => {
+    if (!latest.current.soundEnabled) return
+    if (!audioRef.current) {
+      audioRef.current = new Audio('/audio/notificacion.mp3?v=lluvia-torrencial-1')
+      audioRef.current.loop = true
+    }
+    audioRef.current.currentTime = 0
+    audioRef.current.play().catch(() => {})
+  }
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      const now = Date.now()
+      const due = latest.current.parcels.filter((p) => p.followUpAt !== undefined && p.followUpAt <= now)
+      if (due.length === 0) return
+
+      const dueIds = new Set(due.map((p) => p.id))
+      setParcels((list) => list.map((p) => (dueIds.has(p.id) ? { ...p, followUpAt: undefined } : p)))
+      setAlerts((list) => [
+        ...due.map((p) => ({
+          id: `recordatorio-${p.id}-${now}`,
+          parcelId: p.id,
+          title: 'Recordatorio de seguimiento',
+          body: `Es momento de revisar ${p.name}. Humedad actual: ${p.moisture}%.`,
+          time: 'Ahora',
+          status: getStatus(p.moisture),
+        })),
+        ...list,
+      ])
+      setUnreadAlerts((n) => n + due.length)
+      const first = due[0]
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        new Notification('AgroSensor · Recordatorio de riego', {
+          body: due.length > 1 ? `Es momento de revisar ${due.length} parcelas.` : `Es momento de revisar ${first.name}.`,
+          icon: '/agro-sensor-icon.png',
+          tag: 'agrosensor-riego',
+        })
+      }
+      setNotification({
+        key: now,
+        parcelId: first.id,
+        kind: 'reminder',
+        headline: 'Recordatorio de seguimiento',
+        body:
+          due.length > 1
+            ? `AgroSensor: es momento de revisar ${due.length} parcelas`
+            : `AgroSensor: es momento de revisar ${first.name} · humedad ${first.moisture}%`,
+      })
+      playNotificationSound()
+    }, 1000)
+
+    return () => window.clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setParcels((list) =>
+        list.map((parcel) => ({
+          ...parcel,
+          soilPh: Number((Math.max(4.5, Math.min(8.5, parcel.soilPh + (Math.random() > 0.5 ? 0.1 : -0.1)))).toFixed(1)),
+          soilTemperature: Number((Math.max(5, Math.min(40, parcel.soilTemperature + (Math.random() > 0.5 ? 0.1 : -0.1)))).toFixed(1)),
+          ambientTemperature: Number((Math.max(5, Math.min(45, parcel.ambientTemperature + (Math.random() > 0.5 ? 0.1 : -0.1)))).toFixed(1)),
+          lastReadingMin: 1,
+        })),
+      )
+    }, 60000)
+
+    return () => window.clearInterval(interval)
+  }, [])
 
   const transitionTo = (next: Screen, direction: 1 | -1) => {
     setTransition({
@@ -118,20 +200,20 @@ export function AgroProvider({ children }: { children: ReactNode }) {
       ...p,
       moisture: IRRIGATED_MOISTURE,
       lastReadingMin: 0,
-      followUpHours: undefined,
+      followUpAt: undefined,
       history: [...p.history.slice(0, -1), IRRIGATED_MOISTURE],
       readings: [{ time: 'Ahora (tras riego)', value: IRRIGATED_MOISTURE }, ...p.readings].slice(0, 6),
     }))
 
-  const scheduleFollowUp = (id: ParcelId, hours: number) =>
-    updateParcel(id, (p) => ({ ...p, followUpHours: hours }))
+  const scheduleFollowUp = (id: ParcelId, seconds: number) => {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      void Notification.requestPermission()
+    }
+    updateParcel(id, (p) => ({ ...p, followUpAt: Date.now() + seconds * 1000 }))
+  }
 
   const triggerCriticalAlert = () => {
-    if (soundEnabled) {
-      if (!audioRef.current) audioRef.current = new Audio('/audio/notificacion.mp3')
-      audioRef.current.currentTime = 0
-      audioRef.current.play().catch(() => {})
-    }
+    playNotificationSound()
     const base = INITIAL_PARCELS.find((p) => p.id === 'este')!
     updateParcel('este', () => ({ ...base }))
     setAlerts((list) => [
@@ -146,7 +228,13 @@ export function AgroProvider({ children }: { children: ReactNode }) {
       ...list,
     ])
     setUnreadAlerts((n) => n + 1)
-    setNotificationKey(Date.now())
+    setNotification({
+      key: Date.now(),
+      parcelId: 'este',
+      kind: 'critical',
+      headline: 'Humedad crítica · 12%',
+      body: 'AgroSensor: Alerta de humedad crítica en Parcela Este',
+    })
   }
 
   const openParcel = (id: ParcelId) => {
@@ -155,8 +243,8 @@ export function AgroProvider({ children }: { children: ReactNode }) {
   }
 
   const openNotification = () => {
-    setNotificationKey(null)
-    setSelectedId('este')
+    if (notification) setSelectedId(notification.parcelId)
+    setNotification(null)
     setTransition({ direction: 1, fade: false })
     setStack(['parcels', 'detail'])
   }
@@ -177,7 +265,7 @@ export function AgroProvider({ children }: { children: ReactNode }) {
     selectedParcel: parcels.find((p) => p.id === selectedId)!,
     alerts,
     unreadAlerts,
-    notificationKey,
+    notification,
     soundEnabled,
     push,
     back,
@@ -187,7 +275,7 @@ export function AgroProvider({ children }: { children: ReactNode }) {
     logout: () => {
       setUserState(null)
       setParcels(INITIAL_PARCELS)
-      setNotificationKey(null)
+      setNotification(null)
       reset('register', -1)
     },
     openParcel,
@@ -195,7 +283,13 @@ export function AgroProvider({ children }: { children: ReactNode }) {
     markIrrigated,
     scheduleFollowUp,
     triggerCriticalAlert,
-    dismissNotification: () => setNotificationKey(null),
+    dismissNotification: () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.currentTime = 0
+      }
+      setNotification(null)
+    },
     openNotification,
     markAlertsRead: () => setUnreadAlerts(0),
     setSoundEnabled,

@@ -1,6 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion, type Variants } from 'motion/react'
+import { useState } from 'react'
 import type { ComponentType } from 'react'
 import { AgroProvider, useAgro, type Screen, type Transition } from './app-store'
 import { BottomNav, NotificationBanner, StatusBar } from './chrome'
@@ -13,6 +14,7 @@ import { PostponeScreen, SuccessScreen } from './screens/result-screens'
 import { SplashScreen } from './screens/splash-screen'
 import { AlertsScreen, SettingsScreen } from './screens/tab-screens'
 import { AddParcelContactScreen, AddParcelScreen } from './screens/add-parcel-screens'
+import ChatComponent from '@/components/bot/ChatComponent'
 
 const SCREENS: Record<Screen, ComponentType> = {
   splash: SplashScreen,
@@ -52,7 +54,7 @@ const variants: Variants = {
         },
 }
 
-function PhoneContent() {
+function PhoneContent({ onAssistantClick }: { onAssistantClick: () => void }) {
   const { screen, transition } = useAgro()
   const Current = SCREENS[screen]
   const showNav = NAV_SCREENS.includes(screen)
@@ -85,7 +87,7 @@ function PhoneContent() {
             transition={{ duration: 0.25, ease: EASE }}
             className="overflow-hidden"
           >
-            <BottomNav />
+            <BottomNav onAssistantClick={onAssistantClick} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -95,12 +97,15 @@ function PhoneContent() {
 }
 
 export function AgroApp() {
+  const [assistantOpen, setAssistantOpen] = useState(false)
+
   return (
     <AgroProvider>
       <div className="relative flex h-dvh w-full flex-col overflow-hidden bg-background sm:h-[min(844px,calc(100dvh-2rem))] sm:w-[390px] sm:rounded-[3rem] sm:border-[10px] sm:border-neutral-900 sm:shadow-2xl sm:shadow-black/30 sm:ring-1 sm:ring-neutral-700">
         <span className="pointer-events-none absolute top-2 left-1/2 z-[60] hidden h-7 w-28 -translate-x-1/2 rounded-full bg-neutral-900 sm:block" aria-hidden />
-        <PhoneContent />
+        <PhoneContent onAssistantClick={() => setAssistantOpen(true)} />
         <span className="pointer-events-none absolute bottom-1.5 left-1/2 z-[60] hidden h-1 w-32 -translate-x-1/2 rounded-full bg-foreground/80 sm:block" aria-hidden />
+        <ChatComponent open={assistantOpen} onOpenChange={setAssistantOpen} />
       </div>
     </AgroProvider>
   )

@@ -60,6 +60,21 @@ export function DetailScreen() {
           </div>
         </Card>
 
+        <Card className="mt-3 grid grid-cols-3 gap-2 p-3">
+          <div className="rounded-xl bg-muted/60 p-2">
+            <p className="text-[11px] text-muted-foreground">pH del suelo</p>
+            <p className="mt-1 text-lg font-bold tabular-nums">{parcel.soilPh.toFixed(1)}</p>
+          </div>
+          <div className="rounded-xl bg-muted/60 p-2">
+            <p className="text-[11px] text-muted-foreground">Temp. suelo</p>
+            <p className="mt-1 text-lg font-bold tabular-nums">{parcel.soilTemperature.toFixed(1)} °C</p>
+          </div>
+          <div className="rounded-xl bg-muted/60 p-2">
+            <p className="text-[11px] text-muted-foreground">Temp. ambiente</p>
+            <p className="mt-1 text-lg font-bold tabular-nums">{parcel.ambientTemperature.toFixed(1)} °C</p>
+          </div>
+        </Card>
+
         <Card className="mt-3 flex items-center gap-3 p-3.5">
           <CalendarDays className="size-5 shrink-0 text-primary" aria-hidden />
           <div>
