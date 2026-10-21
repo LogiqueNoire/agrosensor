@@ -159,7 +159,7 @@ export function SettingsScreen() {
               WhatsApp
             </a>
           </div>
-          <p className="mt-2 text-center text-xs text-muted-foreground">+51 989 308 766</p>
+          <p className="mt-2 text-center text-xs text-muted-foreground">+51 987654321</p>
         </Card>
 
         <p className="mt-4 px-1 text-xs text-muted-foreground text-pretty">
