@@ -150,11 +150,11 @@ export function SettingsScreen() {
             </div>
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <a href="tel:+51989308766" className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-primary/25 bg-card px-2 text-center text-sm font-semibold text-primary outline-none hover:bg-primary/5 focus-visible:ring-3 focus-visible:ring-ring/40">
+            <a href="tel:+51987654321" className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-primary/25 bg-card px-2 text-center text-sm font-semibold text-primary outline-none hover:bg-primary/5 focus-visible:ring-3 focus-visible:ring-ring/40">
               <Phone className="size-4" aria-hidden />
               Llamar
             </a>
-            <a href="https://wa.me/51989308766" target="_blank" rel="noreferrer" className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-2 text-center text-sm font-semibold text-primary-foreground outline-none hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40">
+            <a href="https://wa.me/51987654321" target="_blank" rel="noreferrer" className="flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-2 text-center text-sm font-semibold text-primary-foreground outline-none hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40">
               <MessageCircle className="size-4" aria-hidden />
               WhatsApp
             </a>
