@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'motion/react'
-import { Bot, BatteryFull, Bell, ChartColumn, House, Settings, Signal, Wifi, X } from 'lucide-react'
+import { BatteryFull, Bell, Bot, ChartColumn, House, Settings, Signal, Wifi, X } from 'lucide-react'
 import { useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { useAgro, type Screen } from './app-store'
@@ -33,12 +33,12 @@ const TABS: { id: Screen; label: string; icon: typeof House; matches: Screen[] }
   { id: 'settings', label: 'Configuración', icon: Settings, matches: ['settings'] },
 ]
 
-export function BottomNav({ onAssistantClick }: { onAssistantClick: () => void }) {
+export function BottomNav() {
   const { screen, goToTab, unreadAlerts } = useAgro()
 
   return (
     <nav aria-label="Navegación principal" className="shrink-0 border-t border-border bg-card pb-1 sm:pb-5">
-      <ul className="grid grid-cols-5">
+      <ul className="grid grid-cols-4">
         {TABS.map((tab) => {
           const active = tab.matches.includes(screen)
           const Icon = tab.icon
@@ -76,20 +76,25 @@ export function BottomNav({ onAssistantClick }: { onAssistantClick: () => void }
             </li>
           )
         })}
-        <li>
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.92 }}
-            onClick={onAssistantClick}
-            className="relative flex h-16 w-full flex-col items-center justify-center gap-1 text-[11px] font-semibold text-muted-foreground outline-none focus-visible:bg-muted"
-            aria-label="Abrir asistente"
-          >
-            <Bot className="size-6" aria-hidden />
-            Asistente
-          </motion.button>
-        </li>
       </ul>
     </nav>
+  )
+}
+
+export function AssistantBubble({ onClick }: { onClick: () => void }) {
+  return (
+    <motion.button
+      type="button"
+      onClick={onClick}
+      whileHover={{ y: -2 }}
+      whileTap={{ scale: 0.96 }}
+      transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+      aria-label="Abrir asistente de AgroSensor"
+      title="Asistente"
+      className="absolute right-4 bottom-[5.6rem] z-[60] flex size-14 items-center justify-center rounded-full border-4 border-card bg-primary text-primary-foreground shadow-xl shadow-primary/30 outline-none transition-colors hover:bg-primary/90 focus-visible:ring-4 focus-visible:ring-primary/25"
+    >
+      <Bot className="size-6" aria-hidden />
+    </motion.button>
   )
 }
 

@@ -4,7 +4,9 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import {
   INITIAL_ALERTS,
   INITIAL_PARCELS,
+  attachSimulatedSensors,
   getStatus,
+  getWorstSensorMoisture,
   type AlertItem,
   type Parcel,
   type ParcelId,
@@ -62,13 +64,13 @@ type AgroState = {
   openParcel: (id: ParcelId) => void
   selectParcel: (id: ParcelId) => void
   markIrrigated: (id: ParcelId) => void
-  scheduleFollowUp: (id: ParcelId, seconds: number) => void
+  scheduleFollowUp: (id: ParcelId, scheduledAt: number) => void
   triggerCriticalAlert: () => void
   dismissNotification: () => void
   openNotification: () => void
   markAlertsRead: () => void
   setSoundEnabled: (enabled: boolean) => void
-  createParcel: (parcel: Omit<Parcel, 'id'>) => void
+  createParcel: (parcel: Omit<Parcel, 'id' | 'sensors'>) => void
 }
 
 const AgroContext = createContext<AgroState | null>(null)
@@ -156,10 +158,20 @@ export function AgroProvider({ children }: { children: ReactNode }) {
       setParcels((list) =>
         list.map((parcel) => ({
           ...parcel,
-          soilPh: Number((Math.max(4.5, Math.min(8.5, parcel.soilPh + (Math.random() > 0.5 ? 0.1 : -0.1)))).toFixed(1)),
+          soilPh: parcel.sensorType === 'advanced' && parcel.soilPh !== undefined
+            ? Number((Math.max(4.5, Math.min(8.5, parcel.soilPh + (Math.random() > 0.5 ? 0.1 : -0.1)))).toFixed(1))
+            : undefined,
           soilTemperature: Number((Math.max(5, Math.min(40, parcel.soilTemperature + (Math.random() > 0.5 ? 0.1 : -0.1)))).toFixed(1)),
           ambientTemperature: Number((Math.max(5, Math.min(45, parcel.ambientTemperature + (Math.random() > 0.5 ? 0.1 : -0.1)))).toFixed(1)),
           lastReadingMin: 1,
+          sensors: parcel.sensors.map((sensor) => ({
+            ...sensor,
+            soilPh: parcel.sensorType === 'advanced' && sensor.soilPh !== undefined
+              ? Number((Math.max(4.5, Math.min(8.5, sensor.soilPh + (Math.random() > 0.5 ? 0.1 : -0.1)))).toFixed(1))
+              : undefined,
+            soilTemperature: Number((Math.max(5, Math.min(40, sensor.soilTemperature + (Math.random() > 0.5 ? 0.1 : -0.1)))).toFixed(1)),
+            lastUpdatedMin: sensor.status === 'offline' ? sensor.lastUpdatedMin + 1 : 1,
+          })),
         })),
       )
     }, 60000)
@@ -202,10 +214,18 @@ export function AgroProvider({ children }: { children: ReactNode }) {
 
   const markIrrigated = (id: ParcelId) => {
     updateParcel(id, (p) => {
-      const moisture = getIrrigationMoisture(p.moisture)
+      const nextMoisture = getIrrigationMoisture(p.moisture)
+      const increase = nextMoisture - p.moisture
+      const sensors = p.sensors.map((sensor) => ({
+        ...sensor,
+        moisture: Math.min(100, sensor.moisture + increase),
+        lastUpdatedMin: 0,
+      }))
+      const moisture = getWorstSensorMoisture(sensors, nextMoisture)
       return {
         ...p,
         moisture,
+        sensors,
         lastReadingMin: 0,
         followUpAt: undefined,
         history: [...p.history.slice(0, -1), moisture],
@@ -214,11 +234,11 @@ export function AgroProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  const scheduleFollowUp = (id: ParcelId, seconds: number) => {
+  const scheduleFollowUp = (id: ParcelId, scheduledAt: number) => {
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
       void Notification.requestPermission()
     }
-    updateParcel(id, (p) => ({ ...p, followUpAt: Date.now() + seconds * 1000 }))
+    updateParcel(id, (p) => ({ ...p, followUpAt: scheduledAt }))
   }
 
   const triggerCriticalAlert = () => {
@@ -258,9 +278,10 @@ export function AgroProvider({ children }: { children: ReactNode }) {
     setStack(['parcels', 'detail'])
   }
 
-  const createParcel = (parcel: Omit<Parcel, 'id'>) => {
+  const createParcel = (parcel: Omit<Parcel, 'id' | 'sensors'>) => {
     const id = `parcela-${Date.now()}`
-    setParcels((list) => [...list, { ...parcel, id }])
+    const newParcel = attachSimulatedSensors({ ...parcel, id })
+    setParcels((list) => [...list, newParcel])
     setSelectedId(id)
     reset('parcels')
   }

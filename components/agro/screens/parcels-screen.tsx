@@ -5,7 +5,7 @@ import { BellRing, ChevronRight, Clock, Plus, Sprout, UserRound } from 'lucide-r
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 
-import { STATUS_META, formatCountdown, formatLastReading, getStatus, type Parcel } from '@/lib/agro-data'
+import { STATUS_META, formatCountdown, formatLastReading, getAverageSensorMetric, getStatus, type Parcel } from '@/lib/agro-data'
 import { cn } from '@/lib/utils'
 import { useAgro } from '../app-store'
 import { AppButton, Card, Logo, StatusBadge } from '../ui'
@@ -28,6 +28,32 @@ function FollowUpCountdown({ dueAt }: { dueAt: number }) {
 
 function ParcelCard({ parcel, index, onOpen }: { parcel: Parcel; index: number; onOpen: () => void }) {
   const status = getStatus(parcel.moisture)
+  const isAdvanced = parcel.sensorType === 'advanced'
+  const advancedValues = isAdvanced
+    ? {
+        nitrogen: getAverageSensorMetric(parcel.sensors, 'nitrogen')?.toFixed(0) ?? '—',
+        potassium: getAverageSensorMetric(parcel.sensors, 'potassium')?.toFixed(0) ?? '—',
+        phosphorus: getAverageSensorMetric(parcel.sensors, 'phosphorus')?.toFixed(0) ?? '—',
+        electricalConductivity: getAverageSensorMetric(parcel.sensors, 'electricalConductivity')?.toFixed(1) ?? '—',
+      }
+    : null
+  const accessibleLabel = [
+    parcel.name,
+    `${parcel.moisture}% de humedad`,
+    `${parcel.soilTemperature.toFixed(1)} grados de temperatura del suelo`,
+    `${parcel.ambientTemperature.toFixed(1)} grados de temperatura ambiente`,
+    ...(isAdvanced
+      ? [
+          `pH del suelo ${parcel.soilPh?.toFixed(1) ?? 'sin dato'}`,
+          `nitrógeno ${advancedValues?.nitrogen} mg/kg`,
+          `potasio ${advancedValues?.potassium} mg/kg`,
+          `fósforo ${advancedValues?.phosphorus} mg/kg`,
+          `conductividad eléctrica ${advancedValues?.electricalConductivity} dS/m`,
+        ]
+      : []),
+    'Ver detalle',
+  ].join(', ')
+
   return (
     <motion.button
       type="button"
@@ -37,7 +63,7 @@ function ParcelCard({ parcel, index, onOpen }: { parcel: Parcel; index: number; 
       transition={{ delay: 0.05 + index * 0.07, duration: 0.3 }}
       whileTap={{ scale: 0.98 }}
       className="flex w-full items-stretch gap-3 rounded-2xl border border-border bg-card p-3 text-left shadow-[0_2px_10px_-4px_rgb(19_38_30/0.12)] outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
-      aria-label={`${parcel.name}, ${parcel.moisture}% de humedad, pH ${parcel.soilPh.toFixed(1)}, ${parcel.soilTemperature.toFixed(1)} grados de suelo y ${parcel.ambientTemperature.toFixed(1)} grados ambiente. Ver detalle`}
+      aria-label={accessibleLabel}
     >
       <div className="relative w-20 shrink-0 overflow-hidden rounded-xl">
         <Image src={parcel.image} alt="" fill sizes="80px" className="object-cover" />
@@ -57,11 +83,13 @@ function ParcelCard({ parcel, index, onOpen }: { parcel: Parcel; index: number; 
           </div>
           <StatusBadge status={status} />
         </div>
-        <div className="mt-2 grid grid-cols-3 gap-1.5 border-t border-border/70 pt-2 text-[11px]">
-          <span className="rounded-lg bg-muted/60 px-2 py-1.5">
-            <span className="block text-muted-foreground">pH suelo</span>
-            <span className="font-semibold tabular-nums">{parcel.soilPh.toFixed(1)}</span>
-          </span>
+        <div className={cn('mt-2 grid gap-1.5 border-t border-border/70 pt-2 text-[11px]', isAdvanced ? 'grid-cols-3' : 'grid-cols-2')}>
+          {isAdvanced && (
+            <span className="rounded-lg bg-muted/60 px-2 py-1.5">
+              <span className="block text-muted-foreground">pH suelo</span>
+              <span className="font-semibold tabular-nums">{parcel.soilPh?.toFixed(1) ?? '—'}</span>
+            </span>
+          )}
           <span className="rounded-lg bg-muted/60 px-2 py-1.5">
             <span className="block text-muted-foreground">Temp. suelo</span>
             <span className="font-semibold tabular-nums">{parcel.soilTemperature.toFixed(1)} °C</span>
@@ -71,6 +99,26 @@ function ParcelCard({ parcel, index, onOpen }: { parcel: Parcel; index: number; 
             <span className="font-semibold tabular-nums">{parcel.ambientTemperature.toFixed(1)} °C</span>
           </span>
         </div>
+        {advancedValues && (
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5 text-[11px]">
+            <span className="rounded-lg bg-muted/60 px-2 py-1.5">
+              <span className="block text-muted-foreground">Nitrógeno (N)</span>
+              <span className="font-semibold tabular-nums">{advancedValues.nitrogen} mg/kg</span>
+            </span>
+            <span className="rounded-lg bg-muted/60 px-2 py-1.5">
+              <span className="block text-muted-foreground">Potasio (K)</span>
+              <span className="font-semibold tabular-nums">{advancedValues.potassium} mg/kg</span>
+            </span>
+            <span className="rounded-lg bg-muted/60 px-2 py-1.5">
+              <span className="block text-muted-foreground">Fósforo (P)</span>
+              <span className="font-semibold tabular-nums">{advancedValues.phosphorus} mg/kg</span>
+            </span>
+            <span className="rounded-lg bg-muted/60 px-2 py-1.5">
+              <span className="block text-muted-foreground">Conductividad (CE)</span>
+              <span className="font-semibold tabular-nums">{advancedValues.electricalConductivity} dS/m</span>
+            </span>
+          </div>
+        )}
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
           <span className="inline-flex items-center gap-1">
             <Clock className="size-3.5" aria-hidden />
@@ -135,20 +183,11 @@ export function ParcelsScreen() {
           <Plus aria-hidden />
           Agregar parcela
         </AppButton>
+        <AppButton className="mt-3" variant="outline" onClick={triggerCriticalAlert}>
+          <BellRing aria-hidden />
+          Simular alerta de humedad crítica
+        </AppButton>
       </div>
-
-      <motion.button
-        type="button"
-        onClick={triggerCriticalAlert}
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.4 }}
-        whileTap={{ scale: 0.94 }}
-        className="absolute right-4 bottom-20 inline-flex h-11 items-center gap-2 rounded-full bg-foreground px-4 text-sm font-semibold text-background shadow-lg shadow-foreground/25 outline-none focus-visible:ring-3 focus-visible:ring-ring/40"
-      >
-        <BellRing className="size-4 text-warning" aria-hidden />
-        Simular alerta de humedad crítica
-      </motion.button>
     </div>
   )
 }

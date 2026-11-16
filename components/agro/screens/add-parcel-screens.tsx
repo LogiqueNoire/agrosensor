@@ -1,10 +1,11 @@
 'use client'
 
 import { useMemo, useState, type ChangeEvent } from 'react'
-import { ChevronRight, ImagePlus, MapPin, Phone, Ruler, Sprout, UserRound } from 'lucide-react'
-import { CROP_PROFILES, getInstallationDate, getStatus, type Parcel } from '@/lib/agro-data'
+import { ImagePlus, MapPin, Phone, Ruler, Sprout, UserRound } from 'lucide-react'
+import { CROP_PROFILES, getInstallationDate, type Parcel, type SensorType } from '@/lib/agro-data'
+import { cn } from '@/lib/utils'
 import { useAgro } from '../app-store'
-import { AppButton, Card, ScreenHeader, StatusBadge } from '../ui'
+import { AppButton, Card, ScreenHeader } from '../ui'
 
 const COMPANY_PHONE = '+51 987654321'
 
@@ -33,6 +34,7 @@ export function AddParcelScreen() {
   const [size, setSize] = useState('')
   const [unit, setUnit] = useState<'ha' | 'm2'>('ha')
   const [crop, setCrop] = useState(CROP_PROFILES[0].label)
+  const [sensorType, setSensorType] = useState<SensorType>('basic')
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
   const [image, setImage] = useState('/parcelas/norte.png')
@@ -52,10 +54,10 @@ export function AddParcelScreen() {
     }
     const hectares = unit === 'ha' ? numericSize : numericSize / 10000
     const moisture = Math.round((selectedCrop.minMoisture + selectedCrop.maxMoisture) / 2)
-    const newParcel: Omit<Parcel, 'id'> = {
+    const newParcel: Omit<Parcel, 'id' | 'sensors'> = {
       name: name.trim().startsWith('Parcela') ? name.trim() : `Parcela ${name.trim()}`,
-      hectares, crop, installationAge: 'Instalación pendiente', installationDate: getInstallationDate(0), installationMonthsAgo: 0, moisture,
-      soilPh: 6.2, soilTemperature: 19.0, ambientTemperature: 25.0,
+      hectares, crop, sensorType, installationAge: 'Instalación pendiente', installationDate: getInstallationDate(0), installationMonthsAgo: 0, moisture,
+      soilPh: sensorType === 'advanced' ? 6.2 : undefined, soilTemperature: 19.0, ambientTemperature: 25.0,
       lastReadingMin: 0, image, history: [moisture, moisture, moisture, moisture, moisture, moisture, moisture],
       readings: [{ time: 'Ahora', value: moisture }],
     }
@@ -67,6 +69,64 @@ export function AddParcelScreen() {
       <ScreenHeader title="Nueva parcela" onBack={back} />
       <div className="flex-1 overflow-y-auto px-4 py-4 pb-6 no-scrollbar">
         <p className="text-sm text-muted-foreground">Configura los datos de tu terreno para recibir recomendaciones precisas.</p>
+        <fieldset className="mt-4 min-w-0">
+          <legend className="text-sm font-semibold">Tipo de sensor</legend>
+          <p className="mt-1 text-xs text-muted-foreground">Selecciona los parámetros que quieres monitorear.</p>
+          <div className="mt-2 flex flex-col gap-2">
+            <label className={cn(
+              'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors focus-within:ring-2 focus-within:ring-ring',
+              sensorType === 'basic' ? 'border-primary bg-primary/[0.04]' : 'border-border bg-card hover:border-primary/40',
+            )}>
+              <input
+                checked={sensorType === 'basic'}
+                className="sr-only"
+                name="sensor-type"
+                onChange={() => setSensorType('basic')}
+                type="radio"
+                value="basic"
+              />
+              <span className={cn(
+                'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border',
+                sensorType === 'basic' ? 'border-primary' : 'border-muted-foreground/40',
+              )} aria-hidden>
+                {sensorType === 'basic' && <span className="size-2.5 rounded-full bg-primary" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold">Sensor básico</span>
+                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">2 parámetros</span>
+                </span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Mide humedad y temperatura del suelo.</span>
+              </span>
+            </label>
+            <label className={cn(
+              'flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors focus-within:ring-2 focus-within:ring-ring',
+              sensorType === 'advanced' ? 'border-primary bg-primary/[0.04]' : 'border-border bg-card hover:border-primary/40',
+            )}>
+              <input
+                checked={sensorType === 'advanced'}
+                className="sr-only"
+                name="sensor-type"
+                onChange={() => setSensorType('advanced')}
+                type="radio"
+                value="advanced"
+              />
+              <span className={cn(
+                'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border',
+                sensorType === 'advanced' ? 'border-primary' : 'border-muted-foreground/40',
+              )} aria-hidden>
+                {sensorType === 'advanced' && <span className="size-2.5 rounded-full bg-primary" />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-semibold">Sensor avanzado</span>
+                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">7 parámetros</span>
+                </span>
+                <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">Mide humedad y temperatura del suelo, pH, nitrógeno (N), potasio (K), fósforo (P) y conductividad eléctrica.</span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
         <label className="mt-4 block text-sm font-semibold">Nombre de la parcela<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ej. Noroeste" className="mt-1.5 h-12 w-full rounded-xl border border-border bg-card px-3 outline-none focus:border-primary focus:ring-3 focus:ring-ring/20" /></label>
         <div className="mt-3 grid grid-cols-[1fr_112px] gap-2"><label className="text-sm font-semibold">Tamaño<input type="number" min="0" value={size} onChange={(e) => setSize(e.target.value)} placeholder="1.5" className="mt-1.5 h-12 w-full rounded-xl border border-border bg-card px-3 outline-none focus:border-primary" /></label><label className="text-sm font-semibold">Medida<select value={unit} onChange={(e) => setUnit(e.target.value as 'ha' | 'm2')} className="mt-1.5 h-12 w-full rounded-xl border border-border bg-card px-2 outline-none focus:border-primary"><option value="ha">Hectáreas</option><option value="m2">m²</option></select></label></div>
         <label className="mt-3 block text-sm font-semibold" htmlFor="parcel-crop">

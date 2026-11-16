@@ -1,17 +1,38 @@
 'use client'
 
 import { motion } from 'motion/react'
-import { CalendarDays, ChartLine, ChevronRight, Clock, Droplet, History, MapPin, Radio } from 'lucide-react'
+import { useState } from 'react'
+import { CalendarDays, ChartLine, ChevronRight, Clock, Droplet, History, MapPin, Radio, TriangleAlert } from 'lucide-react'
 import Image from 'next/image'
-import { formatLastReading, getRecentHistory, getStatus } from '@/lib/agro-data'
+import { cn } from '@/lib/utils'
+import { formatLastReading, getAverageSensorMetric, getRecentHistory, getStatus, getWorstSensorMoisture } from '@/lib/agro-data'
 import { useAgro } from '../app-store'
 import { LineChart } from '../line-chart'
 import { MoistureGauge } from '../moisture-gauge'
+import { SensorsDrawer } from '../sensors-drawer'
 import { AppButton, Card, ScreenHeader, StatusBadge } from '../ui'
+
+function SoilMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-muted/60 p-2">
+      <p className="text-[11px] text-muted-foreground">{label}</p>
+      <p className="mt-1 text-base font-bold tabular-nums">{value}</p>
+    </div>
+  )
+}
 
 export function DetailScreen() {
   const { selectedParcel: parcel, back, canGoBack, push } = useAgro()
-  const status = getStatus(parcel.moisture)
+  const [sensorsOpen, setSensorsOpen] = useState(false)
+  const moisture = getWorstSensorMoisture(parcel.sensors, parcel.moisture)
+  const status = getStatus(moisture)
+  const onlineSensorCount = parcel.sensors.filter((sensor) => sensor.status === 'online').length
+  const hasOfflineSensor = parcel.sensors.some((sensor) => sensor.status === 'offline')
+  const sensorStatusDot = hasOfflineSensor
+    ? 'bg-danger'
+    : parcel.sensors.some((sensor) => sensor.status === 'low-battery')
+      ? 'bg-warning'
+      : 'bg-success'
   const recentHistory = getRecentHistory(parcel)
 
   return (
@@ -30,8 +51,15 @@ export function DetailScreen() {
           </div>
         </div>
 
-        <Card className="mt-4 flex flex-col items-center pt-5 pb-5">
-          <MoistureGauge value={parcel.moisture} />
+        {hasOfflineSensor && (
+          <div role="status" className="mt-4 flex items-center gap-2.5 rounded-xl border border-warning/25 bg-warning/10 px-3.5 py-3 text-sm text-warning">
+            <TriangleAlert className="size-4 shrink-0" aria-hidden />
+            <p>Un sensor no está enviando datos</p>
+          </div>
+        )}
+
+        <Card className={cn('flex flex-col items-center pt-5 pb-5', hasOfflineSensor ? 'mt-3' : 'mt-4')}>
+          <MoistureGauge value={moisture} />
           <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}>
             <StatusBadge status={status} className="-mt-2 px-4 py-1.5 text-sm" />
           </motion.div>
@@ -45,35 +73,42 @@ export function DetailScreen() {
               <p className="text-sm font-semibold">{formatLastReading(parcel.lastReadingMin)}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2.5 p-3.5">
-            <Radio className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-            <div>
-              <p className="text-xs text-muted-foreground">Estado del sensor</p>
-              <p className="flex items-center gap-1.5 text-sm font-semibold">
-                <span className="relative flex size-2">
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
-                  <span className="relative inline-flex size-2 rounded-full bg-success" />
-                </span>
-                En línea
-              </p>
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            aria-label={`Ver sensores de ${parcel.name}`}
+            onClick={() => setSensorsOpen(true)}
+            className="flex min-w-0 items-center justify-between gap-1.5 rounded-r-2xl p-3 outline-none transition-colors hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/40"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <Radio className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+              <div className="min-w-0 text-left">
+                <p className="text-[11px] leading-tight text-muted-foreground">Estado de los sensores</p>
+                <p className="mt-0.5 flex items-center gap-1.5 text-xs font-semibold leading-tight">
+                  <span className={cn('size-2 shrink-0 rounded-full', sensorStatusDot)} aria-hidden />
+                  <span className="truncate">{onlineSensorCount} de {parcel.sensors.length} en línea</span>
+                </p>
+              </div>
             </div>
-          </div>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          </button>
         </Card>
 
-        <Card className="mt-3 grid grid-cols-3 gap-2 p-3">
-          <div className="rounded-xl bg-muted/60 p-2">
-            <p className="text-[11px] text-muted-foreground">pH del suelo</p>
-            <p className="mt-1 text-lg font-bold tabular-nums">{parcel.soilPh.toFixed(1)}</p>
-          </div>
-          <div className="rounded-xl bg-muted/60 p-2">
-            <p className="text-[11px] text-muted-foreground">Temp. suelo</p>
-            <p className="mt-1 text-lg font-bold tabular-nums">{parcel.soilTemperature.toFixed(1)} °C</p>
-          </div>
-          <div className="rounded-xl bg-muted/60 p-2">
-            <p className="text-[11px] text-muted-foreground">Temp. ambiente</p>
-            <p className="mt-1 text-lg font-bold tabular-nums">{parcel.ambientTemperature.toFixed(1)} °C</p>
-          </div>
+        <Card className="mt-3 grid grid-cols-2 gap-2 p-3">
+          <SoilMetric label="Temp. suelo" value={`${parcel.soilTemperature.toFixed(1)} °C`} />
+          <SoilMetric label="Temp. ambiente" value={`${parcel.ambientTemperature.toFixed(1)} °C`} />
         </Card>
+
+        {parcel.sensorType === 'advanced' && (
+          <Card className="mt-3 grid grid-cols-2 gap-2 p-3">
+            <h3 className="col-span-full text-sm font-semibold">Análisis del suelo</h3>
+            <SoilMetric label="pH del suelo" value={parcel.soilPh?.toFixed(1) ?? '—'} />
+            <SoilMetric label="Nitrógeno (N)" value={`${getAverageSensorMetric(parcel.sensors, 'nitrogen')?.toFixed(0) ?? '—'} mg/kg`} />
+            <SoilMetric label="Potasio (K)" value={`${getAverageSensorMetric(parcel.sensors, 'potassium')?.toFixed(0) ?? '—'} mg/kg`} />
+            <SoilMetric label="Fósforo (P)" value={`${getAverageSensorMetric(parcel.sensors, 'phosphorus')?.toFixed(0) ?? '—'} mg/kg`} />
+            <SoilMetric label="Conductividad eléctrica" value={`${getAverageSensorMetric(parcel.sensors, 'electricalConductivity')?.toFixed(1) ?? '—'} dS/m`} />
+          </Card>
+        )}
 
         <Card className="mt-3 flex items-center gap-3 p-3.5">
           <CalendarDays className="size-5 shrink-0 text-primary" aria-hidden />
@@ -115,6 +150,7 @@ export function DetailScreen() {
           </AppButton>
         </div>
       </div>
+      <SensorsDrawer parcel={parcel} open={sensorsOpen} onOpenChange={setSensorsOpen} />
     </div>
   )
 }
