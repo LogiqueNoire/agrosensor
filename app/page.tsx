@@ -1,8 +1,10 @@
+import { cookies } from 'next/headers'
 import { AgroApp } from '@/components/agro/agro-app'
+import { AUTH_COOKIE_NAME, getSession } from '@/lib/auth-session'
 
 const FLOW = [
   'Inicio',
-  'Registro',
+  'Iniciar sesión',
   'Mis Parcelas',
   'Simular alerta',
   'Detalle',
@@ -11,7 +13,10 @@ const FLOW = [
   'Resultado',
 ]
 
-export default function Page() {
+export default async function Page() {
+  const cookieStore = await cookies()
+  const session = getSession(cookieStore.get(AUTH_COOKIE_NAME)?.value)
+
   return (
     <div className="flex min-h-dvh items-center justify-center bg-[radial-gradient(ellipse_at_top,#dcebe2,#eef3f0_55%,#e6ece8)] sm:gap-16 sm:p-4">
       <aside className="hidden max-w-xs lg:block">
@@ -34,7 +39,7 @@ export default function Page() {
         </ol>
         <p className="mt-6 text-xs text-muted-foreground">Activa el sonido de tu equipo para escuchar la notificación.</p>
       </aside>
-      <AgroApp />
+      <AgroApp initialUser={session ? { name: session.usuario } : null} />
     </div>
   )
 }

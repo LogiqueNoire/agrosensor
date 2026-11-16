@@ -11,6 +11,8 @@ import {
   type Parcel,
   type ParcelId,
 } from '@/lib/agro-data'
+import { buildParcelFromLecturas } from '@/lib/lecturas-parcel'
+import type { Lectura, Parcela } from '@/lib/parcelas-types'
 
 export type Screen =
   | 'splash'
@@ -34,7 +36,7 @@ export const TAB_ORDER: Screen[] = ['parcels', 'history', 'alerts', 'settings']
 
 export type Transition = { direction: 1 | -1; fade: boolean }
 
-type User = { name: string; email: string; avatar?: string }
+type User = { name: string; email?: string; avatar?: string }
 
 export type NotificationInfo = {
   key: number
@@ -55,6 +57,10 @@ type AgroState = {
   unreadAlerts: number
   notification: NotificationInfo | null
   soundEnabled: boolean
+  registrationMessage: string
+  setRegistrationMessage: (message: string) => void
+  parcelMessage: string
+  setParcelMessage: (message: string) => void
   push: (screen: Screen) => void
   back: () => void
   reset: (screen: Screen, direction?: 1 | -1) => void
@@ -62,9 +68,11 @@ type AgroState = {
   setUser: (user: User) => void
   logout: () => void
   openParcel: (id: ParcelId) => void
+  openRemoteParcel: (parcela: Parcela) => void
+  applyLecturas: (id: ParcelId, lecturas: Lectura[]) => void
   selectParcel: (id: ParcelId) => void
   markIrrigated: (id: ParcelId) => void
-  scheduleFollowUp: (id: ParcelId, scheduledAt: number) => void
+  scheduleFollowUp: (id: ParcelId, scheduledAt: number, calendarEventRequested: boolean) => void
   triggerCriticalAlert: () => void
   dismissNotification: () => void
   openNotification: () => void
@@ -82,16 +90,18 @@ function getIrrigationMoisture(currentMoisture: number) {
   return Math.min(100, currentMoisture + increase)
 }
 
-export function AgroProvider({ children }: { children: ReactNode }) {
-  const [stack, setStack] = useState<Screen[]>(['splash'])
+export function AgroProvider({ children, initialUser = null }: { children: ReactNode; initialUser?: User | null }) {
+  const [stack, setStack] = useState<Screen[]>([initialUser ? 'parcels' : 'login'])
   const [transition, setTransition] = useState<Transition>({ direction: 1, fade: true })
-  const [user, setUserState] = useState<User | null>(null)
+  const [user, setUserState] = useState<User | null>(initialUser)
   const [parcels, setParcels] = useState<Parcel[]>(INITIAL_PARCELS)
   const [selectedId, setSelectedId] = useState<ParcelId>('norte')
   const [alerts, setAlerts] = useState<AlertItem[]>(INITIAL_ALERTS)
   const [unreadAlerts, setUnreadAlerts] = useState(INITIAL_ALERTS.length)
   const [notification, setNotification] = useState<NotificationInfo | null>(null)
   const [soundEnabled, setSoundEnabled] = useState(true)
+  const [registrationMessage, setRegistrationMessage] = useState('')
+  const [parcelMessage, setParcelMessage] = useState('')
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const latest = useRef({ parcels, soundEnabled })
   latest.current = { parcels, soundEnabled }
@@ -156,7 +166,7 @@ export function AgroProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const interval = window.setInterval(() => {
       setParcels((list) =>
-        list.map((parcel) => ({
+        list.map((parcel) => parcel.remoteSource ? parcel : ({
           ...parcel,
           soilPh: parcel.sensorType === 'advanced' && parcel.soilPh !== undefined
             ? Number((Math.max(4.5, Math.min(8.5, parcel.soilPh + (Math.random() > 0.5 ? 0.1 : -0.1)))).toFixed(1))
@@ -234,11 +244,11 @@ export function AgroProvider({ children }: { children: ReactNode }) {
     })
   }
 
-  const scheduleFollowUp = (id: ParcelId, scheduledAt: number) => {
+  const scheduleFollowUp = (id: ParcelId, scheduledAt: number, calendarEventRequested: boolean) => {
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
       void Notification.requestPermission()
     }
-    updateParcel(id, (p) => ({ ...p, followUpAt: scheduledAt }))
+    updateParcel(id, (p) => ({ ...p, followUpAt: scheduledAt, calendarEventRequested }))
   }
 
   const triggerCriticalAlert = () => {
@@ -271,6 +281,22 @@ export function AgroProvider({ children }: { children: ReactNode }) {
     push('detail')
   }
 
+  const openRemoteParcel = (parcela: Parcela) => {
+    setParcels((list) => {
+      const existing = list.find((p) => p.id === parcela.id_parcela)
+      if (existing?.remoteSource) {
+        return list.map((p) => (p.id === existing.id ? { ...p, remoteSource: parcela } : p))
+      }
+      const pending = buildParcelFromLecturas(parcela, [], existing, false)
+      return existing ? list.map((p) => (p.id === pending.id ? pending : p)) : [...list, pending]
+    })
+    setSelectedId(parcela.id_parcela)
+    push('detail')
+  }
+
+  const applyLecturas = (id: ParcelId, lecturas: Lectura[]) =>
+    updateParcel(id, (p) => (p.remoteSource ? buildParcelFromLecturas(p.remoteSource, lecturas, p) : p))
+
   const openNotification = () => {
     if (notification) setSelectedId(notification.parcelId)
     setNotification(null)
@@ -292,23 +318,30 @@ export function AgroProvider({ children }: { children: ReactNode }) {
     transition,
     user,
     parcels,
-    selectedParcel: parcels.find((p) => p.id === selectedId)!,
+    selectedParcel: parcels.find((p) => p.id === selectedId) ?? parcels[0],
     alerts,
     unreadAlerts,
     notification,
     soundEnabled,
+    registrationMessage,
+    setRegistrationMessage,
+    parcelMessage,
+    setParcelMessage,
     push,
     back,
     reset,
     goToTab,
     setUser: setUserState,
-    logout: () => {
+    logout: async () => {
+      await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined)
       setUserState(null)
       setParcels(INITIAL_PARCELS)
       setNotification(null)
-      reset('register', -1)
+      reset('login', -1)
     },
     openParcel,
+    openRemoteParcel,
+    applyLecturas,
     selectParcel: setSelectedId,
     markIrrigated,
     scheduleFollowUp,

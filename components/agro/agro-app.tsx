@@ -13,7 +13,7 @@ import { RecommendationScreen } from './screens/recommendation-screen'
 import { PostponeScreen, SuccessScreen } from './screens/result-screens'
 import { SplashScreen } from './screens/splash-screen'
 import { AlertsScreen, SettingsScreen } from './screens/tab-screens'
-import { AddParcelContactScreen, AddParcelScreen } from './screens/add-parcel-screens'
+import { ParcelListScreen, RegisterParcelScreen } from './screens/parcel-management-screens'
 import ChatComponent from '@/components/bot/ChatComponent'
 
 const SCREENS: Record<Screen, ComponentType> = {
@@ -29,8 +29,8 @@ const SCREENS: Record<Screen, ComponentType> = {
   postpone: PostponeScreen,
   alerts: AlertsScreen,
   settings: SettingsScreen,
-  'add-parcel-contact': AddParcelContactScreen,
-  'add-parcel': AddParcelScreen,
+  'add-parcel-contact': ParcelListScreen,
+  'add-parcel': RegisterParcelScreen,
 }
 
 const NAV_SCREENS: Screen[] = ['parcels', 'detail', 'history', 'recommendation', 'alerts', 'settings']
@@ -99,11 +99,11 @@ function PhoneContent({ assistantOpen, onAssistantClick }: { assistantOpen: bool
   )
 }
 
-export function AgroApp() {
+export function AgroApp({ initialUser }: { initialUser: { name: string } | null }) {
   const [assistantOpen, setAssistantOpen] = useState(false)
 
   return (
-    <AgroProvider>
+    <AgroProvider initialUser={initialUser}>
       <div className="relative flex h-dvh w-full flex-col overflow-hidden bg-background sm:h-[min(844px,calc(100dvh-2rem))] sm:w-[390px] sm:rounded-[3rem] sm:border-[10px] sm:border-neutral-900 sm:shadow-2xl sm:shadow-black/30 sm:ring-1 sm:ring-neutral-700">
         <span className="pointer-events-none absolute top-2 left-1/2 z-40 hidden h-7 w-28 -translate-x-1/2 rounded-full bg-neutral-900 sm:block" aria-hidden />
         <PhoneContent assistantOpen={assistantOpen} onAssistantClick={() => setAssistantOpen(true)} />

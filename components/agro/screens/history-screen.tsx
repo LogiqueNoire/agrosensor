@@ -11,6 +11,19 @@ import { AppButton, Card, ScreenHeader, StatusBadge } from '../ui'
 
 export function HistoryScreen() {
   const { parcels, selectedParcel: parcel, selectParcel, back, canGoBack, push } = useAgro()
+  if (parcel.history.length === 0) {
+    return (
+      <div className="flex h-full flex-col">
+        <ScreenHeader title="Historial de lecturas" onBack={canGoBack ? back : undefined} />
+        <div className="flex-1 px-4 pt-4">
+          <Card className="py-8 text-center">
+            <p className="font-semibold">{parcel.name} aún no tiene lecturas</p>
+            <p className="mt-1 text-sm text-muted-foreground">El historial aparecerá cuando el sensor envíe datos.</p>
+          </Card>
+        </div>
+      </div>
+    )
+  }
   const avg = Math.round(parcel.history.reduce((a, b) => a + b, 0) / parcel.history.length)
   const min = Math.min(...parcel.history)
   const stats = [
@@ -24,7 +37,7 @@ export function HistoryScreen() {
       <ScreenHeader title="Historial de lecturas" onBack={canGoBack ? back : undefined} />
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6 no-scrollbar">
         <div role="tablist" aria-label="Seleccionar parcela" className="flex gap-1 rounded-xl bg-muted p-1">
-          {parcels.map((p) => {
+          {parcels.filter((p) => p.history.length > 0).map((p) => {
             const active = p.id === parcel.id
             return (
               <button
@@ -165,7 +178,7 @@ export function ExpandedHistoryScreen() {
       <ScreenHeader title="Historial ampliado" onBack={back} />
       <div className="flex-1 overflow-y-auto px-4 pt-4 pb-6 no-scrollbar">
         <div role="tablist" aria-label="Seleccionar parcela" className="flex gap-1 rounded-xl bg-muted p-1">
-          {parcels.map((p) => <button key={p.id} type="button" role="tab" aria-selected={p.id === parcel.id} onClick={() => selectParcel(p.id)} className={cn('flex-1 rounded-lg py-2 text-sm font-semibold', p.id === parcel.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>{p.name.replace('Parcela ', '')}</button>)}
+          {parcels.filter((p) => p.history.length > 0).map((p) => <button key={p.id} type="button" role="tab" aria-selected={p.id === parcel.id} onClick={() => selectParcel(p.id)} className={cn('flex-1 rounded-lg py-2 text-sm font-semibold', p.id === parcel.id ? 'bg-primary text-primary-foreground' : 'text-muted-foreground')}>{p.name.replace('Parcela ', '')}</button>)}
         </div>
         <Card className="mt-4">
           <div className="flex items-start justify-between gap-2"><div><h2 className="font-semibold">{parcel.name}</h2><p className="text-xs text-muted-foreground">Sensor instalado {parcel.installationAge.toLowerCase()} ({parcel.installationDate})</p></div><StatusBadge status={getStatus(parcel.moisture)} /></div>

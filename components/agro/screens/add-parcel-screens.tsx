@@ -3,11 +3,10 @@
 import { useMemo, useState, type ChangeEvent } from 'react'
 import { ImagePlus, MapPin, Phone, Ruler, Sprout, UserRound } from 'lucide-react'
 import { CROP_PROFILES, getInstallationDate, type Parcel, type SensorType } from '@/lib/agro-data'
+import { COMPANY_PHONE_DISPLAY, COMPANY_PHONE_TEL } from '@/lib/company-contact'
 import { cn } from '@/lib/utils'
 import { useAgro } from '../app-store'
 import { AppButton, Card, ScreenHeader } from '../ui'
-
-const COMPANY_PHONE = '+51 987654321'
 
 export function AddParcelContactScreen() {
   const { push, back } = useAgro()
@@ -19,8 +18,8 @@ export function AddParcelContactScreen() {
         <h2 className="mt-4 text-center text-2xl font-bold">Comencemos con un asesor</h2>
         <p className="mt-2 text-center text-sm leading-relaxed text-muted-foreground">Nuestro equipo te ayuda a instalar el sensor, ubicar tu parcela y dejar todo listo para monitorear la humedad.</p>
         <Card className="mt-5 border-primary/15 bg-primary/[0.04]">
-          <div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Phone className="size-5" aria-hidden /></span><div><p className="font-semibold">Asesor AgroSensor</p><p className="text-sm text-muted-foreground">{COMPANY_PHONE}</p></div></div>
-          <a href="tel:+51987654321" className="mt-4 flex h-12 items-center justify-center rounded-xl border border-primary/25 bg-card text-sm font-semibold text-primary">Contactar asesor</a>
+          <div className="flex items-center gap-3"><span className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground"><Phone className="size-5" aria-hidden /></span><div><p className="font-semibold">Asesor AgroSensor</p><p className="text-sm text-muted-foreground">{COMPANY_PHONE_DISPLAY}</p></div></div>
+          <a href={COMPANY_PHONE_TEL} className="mt-4 flex h-12 items-center justify-center rounded-xl border border-primary/25 bg-card text-sm font-semibold text-primary">Contactar asesor</a>
         </Card>
         <div className="mt-auto pt-6"><AppButton onClick={() => push('add-parcel')}><Sprout aria-hidden />Simulación: agregar parcela</AppButton><p className="mt-2 text-center text-xs text-muted-foreground">Puedes probar todo el proceso sin contactar todavía.</p></div>
       </div>

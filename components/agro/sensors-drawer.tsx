@@ -114,7 +114,7 @@ export function SensorsDrawer({ parcel, open, onOpenChange }: SensorsDrawerProps
         <DrawerHeader className="px-5 pt-2 pb-3 text-left">
           <DrawerTitle className="text-lg font-semibold">Sensores de {parcel.name}</DrawerTitle>
           <DrawerDescription className="mt-1 text-xs">
-            Lecturas simuladas · Sensor {parcel.sensorType === 'advanced' ? 'avanzado' : 'básico'}.
+            {parcel.remoteSource ? 'Últimas lecturas de AgroSensor' : 'Lecturas simuladas'} · Sensor {parcel.sensorType === 'advanced' ? 'avanzado' : 'básico'}.
           </DrawerDescription>
         </DrawerHeader>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">

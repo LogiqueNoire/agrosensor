@@ -1,3 +1,5 @@
+import type { Parcela } from './parcelas-types'
+
 export type MoistureStatus = 'optimo' | 'riesgo' | 'critico'
 
 export type ParcelId = string
@@ -60,6 +62,9 @@ export type Parcel = {
   readings: Reading[]
   sensors: ParcelSensor[]
   followUpAt?: number
+  calendarEventRequested?: boolean
+  remoteSource?: Parcela
+  remoteLoaded?: boolean
 }
 
 export const FOLLOW_UP_MIN_SECONDS = 5
@@ -340,13 +345,14 @@ const INITIAL_PARCELS_BASE: Omit<Parcel, 'sensors'>[] = [
   },
   {
     id: 'simulada',
-    name: 'Parcela Simulada',
+    name: 'Parcela Oeste',
     hectares: 1.2,
     crop: 'Tomate',
     sensorType: 'advanced',
-    installationAge: 'Instalación de prueba',
-    installationDate: getInstallationDate(0),
-    installationMonthsAgo: 0,
+    installationAge: 'Hace 4 meses',
+    installationDate: '1 de julio de 2026',
+    installationMonthsAgo: 4,
+    installationYear: 2026,
     moisture: 62,
     soilPh: 6.3,
     soilTemperature: 20.8,
@@ -415,5 +421,13 @@ export const STATUS_META: Record<
 
 export function formatLastReading(min: number, long = false) {
   if (min === 0) return 'hace un momento'
+  if (min >= 1440) {
+    const days = Math.floor(min / 1440)
+    return long ? `hace ${days} ${days === 1 ? 'día' : 'días'}` : `hace ${days} d`
+  }
+  if (min >= 60) {
+    const hours = Math.floor(min / 60)
+    return long ? `hace ${hours} ${hours === 1 ? 'hora' : 'horas'}` : `hace ${hours} h`
+  }
   return long ? `hace ${min} minutos` : `hace ${min} min`
 }

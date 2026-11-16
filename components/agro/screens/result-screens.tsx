@@ -1,8 +1,8 @@
 'use client'
 
 import { motion } from 'motion/react'
-import { House } from 'lucide-react'
-import { useState } from 'react'
+import { CalendarDays, House } from 'lucide-react'
+import { useRef, useState } from 'react'
 import {
   FOLLOW_UP_MAX_SECONDS,
   FOLLOW_UP_MIN_SECONDS,
@@ -125,6 +125,11 @@ export function PostponeScreen() {
   const [rawValue, setRawValue] = useState('3')
   const [unitId, setUnitId] = useState<FollowUpUnitId>('days')
   const [timeOfDay, setTimeOfDay] = useState('08:00')
+  const calendarDialogRef = useRef<HTMLDialogElement>(null)
+  const calendarRequestIdRef = useRef<string | null>(null)
+  const [calendarStatus, setCalendarStatus] = useState<'idle' | 'saving' | 'authorization' | 'make-error' | 'success' | 'error'>('idle')
+  const [calendarError, setCalendarError] = useState('')
+  const [authorizationUrl, setAuthorizationUrl] = useState('')
 
   const unit = FOLLOW_UP_UNITS.find((u) => u.id === unitId) ?? FOLLOW_UP_UNITS[0]
   const value = Number(rawValue)
@@ -149,9 +154,71 @@ export function PostponeScreen() {
     setUnitId(next.unit)
   }
 
-  const confirm = () => {
+  const openCalendarPrompt = () => {
+    if (!scheduledDate || !calendarDialogRef.current || calendarDialogRef.current.open) return
+    setCalendarStatus('idle')
+    setCalendarError('')
+    setAuthorizationUrl('')
+    calendarRequestIdRef.current = null
+    calendarDialogRef.current.showModal()
+  }
+
+  const finishScheduling = async (calendarEventRequested: boolean) => {
     if (!scheduledDate) return
-    scheduleFollowUp(parcel.id, scheduledDate.getTime())
+
+    if (!calendarEventRequested) {
+      calendarDialogRef.current?.close()
+      scheduleFollowUp(parcel.id, scheduledDate.getTime(), false)
+      reset('parcels', -1)
+      return
+    }
+
+    setCalendarStatus('saving')
+    setCalendarError('')
+    if (!calendarRequestIdRef.current) calendarRequestIdRef.current = crypto.randomUUID()
+
+    try {
+      const response = await fetch('/api/calendar/make/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requestId: calendarRequestIdRef.current,
+          title: `Revisar ${parcel.name}`,
+          description: `Recordatorio de seguimiento para ${parcel.name}.`,
+          startDateTime: scheduledDate.toISOString(),
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Lima',
+        }),
+      })
+      const result = await response.json().catch(() => ({})) as {
+        message?: unknown
+        authorizationRequired?: unknown
+        authorizationUrl?: unknown
+        success?: unknown
+        makeNotified?: unknown
+      }
+
+      if (result.authorizationRequired === true && typeof result.authorizationUrl === 'string') {
+        setAuthorizationUrl(result.authorizationUrl)
+        setCalendarStatus('authorization')
+        return
+      }
+
+      if (!response.ok || result.success !== true) {
+        setCalendarError(typeof result.message === 'string' ? result.message : 'No se pudo crear el evento en Google Calendar.')
+        setCalendarStatus('error')
+        return
+      }
+
+      scheduleFollowUp(parcel.id, scheduledDate.getTime(), true)
+      setCalendarStatus(result.makeNotified === true ? 'success' : 'make-error')
+    } catch {
+      setCalendarError('No se pudo conectar con AgroSensor. Inténtalo de nuevo.')
+      setCalendarStatus('error')
+    }
+  }
+
+  const completeScheduling = () => {
+    calendarDialogRef.current?.close()
     reset('parcels', -1)
   }
 
@@ -232,12 +299,100 @@ export function PostponeScreen() {
       </div>
 
       <div className="mt-6 flex w-full flex-col gap-3">
-        <AppButton onClick={confirm} disabled={error !== null}>Programar recordatorio</AppButton>
+        <AppButton onClick={openCalendarPrompt} disabled={error !== null}>Programar recordatorio</AppButton>
         <AppButton variant="outline" onClick={() => reset('parcels', -1)}>
           <House aria-hidden />
           Volver al inicio
         </AppButton>
       </div>
+
+      <dialog
+        ref={calendarDialogRef}
+        aria-labelledby="calendar-prompt-title"
+        aria-describedby="calendar-prompt-description"
+        onClick={(event) => {
+          if (event.target === event.currentTarget) calendarDialogRef.current?.close()
+        }}
+        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-sm overflow-y-auto rounded-3xl border border-border bg-card p-0 text-card-foreground shadow-xl backdrop:bg-foreground/50"
+      >
+        <div className="p-6 text-left">
+          <div className="mb-4 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <CalendarDays aria-hidden />
+          </div>
+          <h2 id="calendar-prompt-title" className="text-xl font-bold text-balance">
+            ¿Quieres programar un evento en Google Calendar?
+          </h2>
+          <p id="calendar-prompt-description" className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            El evento se creará en tu propia cuenta de Google. AgroSensor enviará a Make los datos del evento, nunca tus credenciales.
+          </p>
+          <div className="mt-6 flex flex-col gap-3">
+            {calendarStatus === 'saving' && (
+              <p role="status" className="text-sm text-muted-foreground">Creando el evento en Google y notificando a Make…</p>
+            )}
+            {calendarStatus === 'authorization' && (
+              <>
+                <p role="status" className="text-sm text-muted-foreground">
+                  Conecta tu cuenta de Google. Después vuelve aquí y continúa para crear el evento.
+                </p>
+                <a
+                  href={authorizationUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex min-h-11 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground outline-none hover:bg-primary/90 focus-visible:ring-3 focus-visible:ring-ring/40"
+                >
+                  Conectar cuenta de Google
+                </a>
+                <AppButton variant="outline" onClick={() => void finishScheduling(true)}>
+                  Ya autoricé, continuar
+                </AppButton>
+              </>
+            )}
+            {calendarStatus === 'error' && (
+              <>
+                <p role="alert" className="text-sm text-danger">{calendarError}</p>
+                <AppButton onClick={() => void finishScheduling(true)}>Reintentar</AppButton>
+              </>
+            )}
+            {calendarStatus === 'make-error' && (
+              <>
+                <p role="status" className="text-sm text-muted-foreground">
+                  El evento ya está en tu Google Calendar, pero Make no recibió la notificación.
+                </p>
+                <AppButton onClick={() => void finishScheduling(true)}>Reintentar notificación a Make</AppButton>
+                <AppButton variant="outline" onClick={completeScheduling}>Listo</AppButton>
+              </>
+            )}
+            {calendarStatus === 'success' && (
+              <>
+                <p role="status" className="text-sm font-semibold text-success">
+                  Evento creado en tu Google Calendar y notificado a Make.
+                </p>
+                <AppButton onClick={completeScheduling}>Listo</AppButton>
+              </>
+            )}
+            {(calendarStatus === 'idle' || calendarStatus === 'saving') && (
+              <>
+                <AppButton autoFocus onClick={() => void finishScheduling(true)} disabled={calendarStatus === 'saving'}>
+                  Sí, conectar Google y agregar
+                </AppButton>
+                <AppButton variant="outline" onClick={() => void finishScheduling(false)} disabled={calendarStatus === 'saving'}>
+                  No, solo el recordatorio
+                </AppButton>
+              </>
+            )}
+            {calendarStatus !== 'success' && calendarStatus !== 'make-error' && (
+              <button
+                type="button"
+                onClick={() => calendarDialogRef.current?.close()}
+                disabled={calendarStatus === 'saving'}
+                className="min-h-11 rounded-xl px-4 text-sm font-semibold text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/40 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
+        </div>
+      </dialog>
     </div>
   )
 }

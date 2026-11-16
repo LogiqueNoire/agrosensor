@@ -2,26 +2,27 @@
 
 import Image from 'next/image'
 import { AnimatePresence, motion } from 'motion/react'
-import { Eye, EyeOff, Lock, Mail, User } from 'lucide-react'
+import { Eye, EyeOff, Lock, User } from 'lucide-react'
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { useAgro } from '../app-store'
 import { AppButton, ScreenHeader } from '../ui'
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
-
-type Field = 'name' | 'email' | 'password'
+type Field = 'usuario' | 'password' | 'confirmPassword'
 
 function validate(values: Partial<Record<Field, string>>, fields: Field[]) {
   const errors: Partial<Record<Field, string>> = {}
-  if (fields.includes('name') && !values.name?.trim()) errors.name = 'Ingresa tu nombre.'
-  if (fields.includes('email')) {
-    if (!values.email?.trim()) errors.email = 'Ingresa tu correo electrónico.'
-    else if (!EMAIL_RE.test(values.email.trim())) errors.email = 'El correo no tiene un formato válido (ej. nombre@correo.com).'
+  if (fields.includes('usuario')) {
+    if (!values.usuario?.trim()) errors.usuario = 'Ingresa tu usuario.'
+    else if (fields.includes('confirmPassword') && /\s/.test(values.usuario)) errors.usuario = 'El usuario no debe contener espacios.'
   }
   if (fields.includes('password')) {
     if (!values.password) errors.password = 'Ingresa una contraseña.'
-    else if (values.password.length < 8) errors.password = 'La contraseña debe tener mínimo 8 caracteres.'
+    else if (fields.includes('confirmPassword') && values.password.length < 8) errors.password = 'La contraseña debe tener al menos 8 caracteres.'
+  }
+  if (fields.includes('confirmPassword')) {
+    if (!values.confirmPassword) errors.confirmPassword = 'Confirma tu contraseña.'
+    else if (values.confirmPassword !== values.password) errors.confirmPassword = 'Las contraseñas no coinciden.'
   }
   return errors
 }
@@ -115,7 +116,7 @@ function TextField({
 }
 
 function useForm(fields: Field[]) {
-  const [values, setValues] = useState<Record<Field, string>>({ name: '', email: '', password: '' })
+  const [values, setValues] = useState<Record<Field, string>>({ usuario: '', password: '', confirmPassword: '' })
   const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({})
   const [submitted, setSubmitted] = useState(false)
   const errors = validate(values, fields)
@@ -156,44 +157,64 @@ function AuthHero({ title, subtitle }: { title: string; subtitle: string }) {
 }
 
 export function RegisterScreen() {
-  const { setUser, reset, push } = useAgro()
-  const form = useForm(['name', 'email', 'password'])
+  const { back, reset, setRegistrationMessage } = useAgro()
+  const form = useForm(['usuario', 'password', 'confirmPassword'])
+  const [serverError, setServerError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault()
-    if (!form.submit()) return
-    setUser({ name: form.values.name.trim(), email: form.values.email.trim() })
-    reset('parcels')
+  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!form.submit() || isSubmitting) return
+
+    setServerError('')
+    setIsSubmitting(true)
+    try {
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          usuario: form.values.usuario,
+          password: form.values.password,
+          confirmPassword: form.values.confirmPassword,
+        }),
+      })
+      const result = (await response.json().catch(() => null)) as { success?: unknown; message?: unknown } | null
+
+      if (response.status === 409) {
+        setServerError('El usuario ya existe')
+        return
+      }
+      if (!response.ok || response.status !== 201 || result?.success !== true) {
+        setServerError('No se pudo completar el registro. Inténtalo más tarde.')
+        return
+      }
+
+      setRegistrationMessage('Usuario registrado. Ya puedes iniciar sesión.')
+      reset('login')
+    } catch {
+      setServerError('No se pudo completar el registro. Inténtalo más tarde.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
     <div className="flex h-full flex-col overflow-y-auto no-scrollbar">
-      <AuthHero title="Crea tu cuenta" subtitle="Monitorea la humedad de tus parcelas y recibe recomendaciones de riego." />
+      <AuthHero title="Crea tu cuenta" subtitle="Regístrate para acceder a tus parcelas y sensores." />
       <form
         onSubmit={onSubmit}
         noValidate
         className="-mt-5 flex flex-1 flex-col gap-4 rounded-t-3xl bg-background px-6 pt-7 pb-6"
       >
         <TextField
-          label="Nombre"
+          label="Usuario"
           icon={<User />}
-          value={form.values.name}
-          onChange={form.set('name')}
-          onBlur={form.blur('name')}
-          error={form.error('name')}
-          autoComplete="given-name"
-          placeholder="Ej. Roberto"
-        />
-        <TextField
-          label="Correo electrónico"
-          icon={<Mail />}
-          type="email"
-          value={form.values.email}
-          onChange={form.set('email')}
-          onBlur={form.blur('email')}
-          error={form.error('email')}
-          autoComplete="email"
-          placeholder="nombre@correo.com"
+          value={form.values.usuario}
+          onChange={form.set('usuario')}
+          onBlur={form.blur('usuario')}
+          error={form.error('usuario')}
+          autoComplete="username"
+          placeholder="Elige un usuario sin espacios"
         />
         <TextField
           label="Contraseña"
@@ -205,16 +226,27 @@ export function RegisterScreen() {
           error={form.error('password')}
           autoComplete="new-password"
           placeholder="Mínimo 8 caracteres"
-          hint="Mínimo 8 caracteres."
+          hint="Usa al menos 8 caracteres."
         />
+        <TextField
+          label="Confirmar contraseña"
+          icon={<Lock />}
+          type="password"
+          value={form.values.confirmPassword}
+          onChange={form.set('confirmPassword')}
+          onBlur={form.blur('confirmPassword')}
+          error={form.error('confirmPassword')}
+          autoComplete="new-password"
+          placeholder="Vuelve a escribir tu contraseña"
+        />
+        {serverError && <p role="alert" className="text-sm font-medium text-danger">{serverError}</p>}
         <div className="mt-auto flex flex-col gap-2 pt-4">
-          <AppButton type="submit">Crear cuenta</AppButton>
-          <AppButton variant="ghost" onClick={() => push('login')}>
+          <AppButton type="submit" disabled={isSubmitting} aria-busy={isSubmitting}>
+            {isSubmitting ? 'Creando cuenta…' : 'Crear cuenta'}
+          </AppButton>
+          <AppButton variant="ghost" onClick={back}>
             Ya tengo cuenta
           </AppButton>
-          <p className="text-center text-xs text-muted-foreground text-pretty">
-            Prototipo: tus datos no se envían a ningún servidor.
-          </p>
         </div>
       </form>
     </div>
@@ -222,37 +254,78 @@ export function RegisterScreen() {
 }
 
 export function LoginScreen() {
-  const { user, setUser, reset, back } = useAgro()
-  const form = useForm(['email', 'password'])
+  const { setUser, reset, push, registrationMessage, setRegistrationMessage, setParcelMessage } = useAgro()
+  const form = useForm(['usuario', 'password'])
+  const [serverError, setServerError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    if (!form.submit()) return
-    const email = form.values.email.trim()
-    const fromEmail = email.split('@')[0].replace(/[._-]+/g, ' ')
-    const name = user?.name || fromEmail.charAt(0).toUpperCase() + fromEmail.slice(1)
-    setUser({ name, email })
-    reset('parcels')
+    if (!form.submit() || isSubmitting) return
+
+    setServerError('')
+    setRegistrationMessage('')
+    setIsSubmitting(true)
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario: form.values.usuario.trim(), password: form.values.password }),
+      })
+      const result = (await response.json().catch(() => null)) as { usuario?: unknown; message?: unknown } | null
+
+      if (!response.ok) {
+        setServerError(typeof result?.message === 'string' ? result.message : 'No se pudo iniciar sesión. Inténtalo de nuevo.')
+        return
+      }
+      if (typeof result?.usuario !== 'string' || !result.usuario.trim()) {
+        setServerError('El servicio de acceso devolvió una respuesta no válida.')
+        return
+      }
+
+      try {
+        const seedResponse = await fetch('/api/parcelas', { method: 'PUT' })
+        const seedResult = (await seedResponse.json().catch(() => null)) as { success?: unknown; added?: unknown } | null
+        if (seedResponse.status === 401) {
+          setServerError('El inicio de sesión no pudo validarse. Inténtalo de nuevo.')
+          return
+        }
+        if (seedResponse.ok && seedResult?.success === true && typeof seedResult.added === 'number' && seedResult.added > 0) {
+          setParcelMessage(`Se agregaron ${seedResult.added} parcelas de inicio.`)
+        } else if (!seedResponse.ok) {
+          setParcelMessage('No se pudieron agregar las parcelas de inicio. Se volverá a intentar en tu próximo acceso.')
+        }
+      } catch {
+        setParcelMessage('No se pudieron agregar las parcelas de inicio. Se volverá a intentar en tu próximo acceso.')
+      }
+
+      setUser({ name: result.usuario.trim() })
+      reset('parcels')
+    } catch {
+      setServerError('No se pudo conectar con el servicio de acceso. Revisa tu conexión e inténtalo de nuevo.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
     <div className="flex h-full flex-col">
-      <ScreenHeader title="Iniciar sesión" onBack={back} />
+      <ScreenHeader title="Iniciar sesión" />
       <form onSubmit={onSubmit} noValidate className="flex flex-1 flex-col gap-4 overflow-y-auto px-6 pt-6 pb-6 no-scrollbar">
         <div className="mb-2">
           <h2 className="text-2xl font-bold">Bienvenido de nuevo</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Ingresa con tu correo para ver tus parcelas.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Ingresa con tu usuario para ver tus parcelas.</p>
         </div>
+        {registrationMessage && <p role="status" className="text-sm font-medium text-primary">{registrationMessage}</p>}
         <TextField
-          label="Correo electrónico"
-          icon={<Mail />}
-          type="email"
-          value={form.values.email}
-          onChange={form.set('email')}
-          onBlur={form.blur('email')}
-          error={form.error('email')}
-          autoComplete="email"
-          placeholder="nombre@correo.com"
+          label="Usuario"
+          icon={<User />}
+          value={form.values.usuario}
+          onChange={form.set('usuario')}
+          onBlur={form.blur('usuario')}
+          error={form.error('usuario')}
+          autoComplete="username"
+          placeholder="Tu usuario"
         />
         <TextField
           label="Contraseña"
@@ -265,10 +338,13 @@ export function LoginScreen() {
           autoComplete="current-password"
           placeholder="Tu contraseña"
         />
+        {serverError && <p role="alert" className="text-sm font-medium text-danger">{serverError}</p>}
         <div className="mt-auto flex flex-col gap-2 pt-4">
-          <AppButton type="submit">Iniciar sesión</AppButton>
-          <AppButton variant="ghost" onClick={back}>
-            Crear una cuenta nueva
+          <AppButton type="submit" disabled={isSubmitting} aria-busy={isSubmitting}>
+            {isSubmitting ? 'Validando acceso…' : 'Iniciar sesión'}
+          </AppButton>
+          <AppButton variant="ghost" onClick={() => { setRegistrationMessage(''); push('register') }}>
+            Crear una cuenta
           </AppButton>
         </div>
       </form>
